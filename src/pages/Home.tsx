@@ -1,236 +1,155 @@
+import { useRef } from 'react';
+import { useGSAP } from '@gsap/react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { motion } from 'framer-motion';
-import {
-  ArrowRight,
-  BadgeCheck,
-  BookOpen,
-  Braces,
-  CircuitBoard,
-  DatabaseZap,
-  Fingerprint,
-  Gauge,
-  KeyRound,
-  Layers3,
-  LayoutDashboard,
-  LockKeyhole,
-  Network,
-  Radar,
-  ServerCog,
-  ShieldCheck,
-  TerminalSquare,
-  UserRound,
-  Workflow,
-} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
+import IdentityCanvas from '../components/IdentityCanvas';
 import './Home.css';
 
-const endpointRows = [
-  ['Discovery', '/.well-known/openid-configuration'],
-  ['Authorization', '/authorize'],
-  ['Token', '/token'],
-  ['UserInfo', '/userinfo'],
-  ['JWKS', '/jwks.json'],
-  ['Introspection', '/introspect'],
-  ['Revocation', '/revoke'],
-  ['PAR', '/par'],
-];
+gsap.registerPlugin(ScrollTrigger);
 
-const capabilityGroups = [
+const layers = [
   {
-    icon: Fingerprint,
-    title: '账号与登录',
-    items: ['邮箱密码登录', '邮箱验证码注册', 'Turnstile 风控', '会话检查', 'CSRF 保护', '安全退出'],
+    mark: 'key',
+    title: '登录',
+    text: '账号、验证码、会话和同意页。',
   },
   {
-    icon: LockKeyhole,
-    title: 'OAuth/OIDC 授权',
-    items: ['Authorization Code', 'PKCE S256', 'Consent 页面', 'Scope 展示', 'UserInfo', 'OIDC Discovery'],
+    mark: 'lock',
+    title: '授权',
+    text: 'Authorization Code、PKCE、scope、UserInfo。',
   },
   {
-    icon: ShieldCheck,
-    title: '令牌与安全边界',
-    items: ['JWKS 公钥', 'Token revocation', 'Introspection', 'DPoP/mTLS 元数据', 'Audience 绑定', '错误状态可见'],
+    mark: 'shield',
+    title: '治理',
+    text: '客户端审批、密钥投递、授权撤销。',
   },
   {
-    icon: ServerCog,
-    title: '客户端接入',
-    items: ['接入申请', '管理员审批', 'Client ID 发放', '一次性密钥投递', 'Redirect URI 管理', 'Scope 审核'],
-  },
-  {
-    icon: LayoutDashboard,
-    title: '后台管理',
-    items: ['用户管理', '客户端管理', '授权记录', '授权撤销', '接入审批', '分页与过滤'],
-  },
-  {
-    icon: Network,
-    title: '部署与集成',
-    items: ['前后端分离', '同源 API 代理', 'HTTPS/HSTS', '静态托管', 'SPA fallback', 'OIDF 测试入口'],
+    mark: 'network',
+    title: '验证',
+    text: 'Discovery、JWKS、PAR、Introspection。',
   },
 ];
 
-const telemetry = [
-  ['issuer', 'oauth-test.nazo.run'],
-  ['accounts', 'accounts-test.nazo.run'],
-  ['flow', 'code + pkce'],
-  ['surface', 'web / consent / admin'],
-];
+const flow = ['Authorize', 'Sign in', 'Consent', 'Code', 'Token'];
 
 export default function Home() {
   const { user } = useAuth();
   const canAccessAdmin = user?.role === 'admin' && user.admin_level >= 1;
+  const pageRef = useRef<HTMLDivElement | null>(null);
+
+  useGSAP(
+    () => {
+      gsap.from('.hero-word', {
+        y: 42,
+        opacity: 0,
+        duration: 0.9,
+        ease: 'power3.out',
+        stagger: 0.08,
+      });
+
+      gsap.from('.layer-item', {
+        y: 30,
+        duration: 0.7,
+        ease: 'power2.out',
+        stagger: 0.08,
+        immediateRender: false,
+        scrollTrigger: {
+          trigger: '.layer-strip',
+          start: 'top 78%',
+        },
+      });
+    },
+    { scope: pageRef }
+  );
 
   return (
     <motion.div
-      className="page-transition-wrap home-page cyber-page"
+      ref={pageRef}
+      className="page-transition-wrap home-page cinematic-home"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, transition: { duration: 0.16 } }}
     >
-      <section className="home-shell container">
-        <div className="cyber-hero">
-          <div className="cyber-hero-copy">
-            <div className="home-kicker">
-              <span className="status-dot" />
-              authorization gateway online
-            </div>
-            <h1>NazoAuth identity grid</h1>
+      <section className="cinematic-hero">
+        <div className="container hero-inner">
+          <div className="hero-copy">
+            <h1 aria-label="NazoAuth">
+              <span className="hero-word">Nazo</span>
+              <span className="hero-word">Auth</span>
+            </h1>
             <p>
-              面向外部系统登录的 OAuth/OIDC 账户中心。这里不是单纯的后台，
-              而是用户登录、授权同意、客户端接入、管理员审批和协议发现的统一入口。
+              登录、授权、接入审核。给 OAuth/OIDC 留一个安静、可靠的入口。
             </p>
             <div className="home-actions">
               <Link to={user ? '/profile' : '/auth'} className="btn-primary">
-                {user ? <UserRound size={18} /> : <KeyRound size={18} />}
-                <span>{user ? '打开个人中心' : '进入登录链路'}</span>
+                <span>{user ? '个人中心' : '登录'}</span>
               </Link>
               <Link to="/docs" className="btn-secondary">
-                <BookOpen size={18} />
-                <span>查看全部能力</span>
+                <span>接入</span>
               </Link>
               {canAccessAdmin && (
                 <Link to="/admin" className="btn-secondary">
-                  <LayoutDashboard size={18} />
-                  <span>管理后台</span>
+                  <span>后台</span>
                 </Link>
               )}
             </div>
           </div>
 
-          <aside className="command-panel" aria-label="NazoAuth runtime panel">
-            <div className="terminal-bar">
-              <span />
-              <span />
-              <span />
-              <strong>nazoauth://runtime</strong>
+          <div className="identity-stage" aria-label="NazoAuth identity surface">
+            <IdentityCanvas />
+            <div className="identity-glass" />
+            <div className="identity-core">
+              <img src="/icons/site-icon-64x64.png" alt="NazoAuth 图标" />
+              <strong>NazoAuth</strong>
+              <span>{user ? 'session active' : 'public gateway'}</span>
             </div>
-            <div className="radar-box">
-              <Radar size={38} />
-              <div>
-                <span>current surface</span>
-                <strong>{user ? 'authenticated' : 'public gateway'}</strong>
-              </div>
+            <div className="identity-note note-client">
+              <strong>Client</strong>
+              <span>redirect</span>
             </div>
-            <div className="telemetry-grid">
-              {telemetry.map(([label, value]) => (
-                <div key={label}>
-                  <span>{label}</span>
-                  <code>{value}</code>
-                </div>
-              ))}
+            <div className="identity-note note-user">
+              <strong>User</strong>
+              <span>consent</span>
             </div>
-            <div className="terminal-lines" aria-label="协议端点">
-              {endpointRows.map(([label, path]) => (
-                <div className="terminal-line" key={path}>
-                  <span>{label}</span>
-                  <code>{path}</code>
-                </div>
-              ))}
+            <div className="identity-note note-token">
+              <strong>Token</strong>
+              <span>verify</span>
             </div>
-            <Link className="gateway-panel-link" to="/profile?tab=access-requests">
-              <span>申请 OAuth 客户端</span>
-              <ArrowRight size={16} />
-            </Link>
-          </aside>
+          </div>
         </div>
+      </section>
 
-        <section className="capability-section" aria-labelledby="capability-title">
-          <div className="section-head">
-            <div>
-              <span className="docs-eyebrow">capability matrix</span>
-              <h2 id="capability-title">覆盖从登录到接入审批的完整链路</h2>
+      <section className="container layer-strip" aria-label="NazoAuth capabilities">
+        {layers.map((item) => {
+          return (
+            <article className="layer-item" key={item.title}>
+              <span className={`layer-mark ${item.mark}`} />
+              <div>
+                <h2>{item.title}</h2>
+                <p>{item.text}</p>
+              </div>
+            </article>
+          );
+        })}
+      </section>
+
+      <section className="container sequence-section" aria-label="OAuth flow">
+        <div>
+          <h2>授权路径</h2>
+          <p>协议细节留给后端。页面只把用户带到该做决定的地方。</p>
+        </div>
+        <div className="sequence-rail">
+          {flow.map((item, index) => (
+            <div className="sequence-stop" key={item}>
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              <strong>{item}</strong>
+              {index < flow.length - 1 && <em aria-hidden="true">→</em>}
             </div>
-            <p>
-              页面、API 和后台围绕同一套协议边界设计：外部应用负责发起授权请求，
-              NazoAuth 负责账号登录、用户同意、令牌发放和客户端治理。
-            </p>
-          </div>
-
-          <div className="capability-grid">
-            {capabilityGroups.map((group) => {
-              const Icon = group.icon;
-              return (
-                <article className="capability-card" key={group.title}>
-                  <div className="capability-icon">
-                    <Icon size={22} />
-                  </div>
-                  <h3>{group.title}</h3>
-                  <ul>
-                    {group.items.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-
-        <section className="flow-section">
-          <div className="flow-card wide">
-            <Workflow size={22} />
-            <h2>外部应用登录流程</h2>
-            <div className="flow-steps">
-              <span>client redirects</span>
-              <span>user signs in</span>
-              <span>consent decision</span>
-              <span>authorization code</span>
-              <span>token exchange</span>
-            </div>
-          </div>
-          <div className="flow-card">
-            <CircuitBoard size={22} />
-            <h3>前后端分离</h3>
-            <p>React 前端可静态托管；API 通过同源反代保持 cookie、CSRF 和浏览器安全边界稳定。</p>
-          </div>
-          <div className="flow-card">
-            <DatabaseZap size={22} />
-            <h3>治理数据</h3>
-            <p>用户、授权应用、接入申请、客户端配置和授权记录都可在 Web 工作台中查看或处理。</p>
-          </div>
-        </section>
-
-        <section className="home-proof-strip">
-          <div>
-            <BadgeCheck size={18} />
-            <span>OIDC / OAuth protocol surface</span>
-          </div>
-          <div>
-            <Gauge size={16} />
-            <span>PKCE S256</span>
-          </div>
-          <div>
-            <Layers3 size={16} />
-            <span>PAR / DPoP / mTLS metadata</span>
-          </div>
-          <div>
-            <Braces size={16} />
-            <span>JSON discovery</span>
-          </div>
-          <div>
-            <TerminalSquare size={16} />
-            <span>static web deploy</span>
-          </div>
-        </section>
+          ))}
+        </div>
       </section>
     </motion.div>
   );

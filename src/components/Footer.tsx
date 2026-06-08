@@ -10,7 +10,7 @@ export default function Footer() {
         </div>
         <div className="footer-links">
           <p className="footer-copyright">
-            © {new Date().getFullYear()} NazoAuth. OAuth/OIDC account gateway.
+            © {new Date().getFullYear()} NazoAuth. 登录、授权和客户端接入。
           </p>
         </div>
       </div>

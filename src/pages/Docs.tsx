@@ -1,32 +1,73 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   BookOpen,
+  CheckCircle2,
   ChevronRight,
+  ClipboardCheck,
   Copy,
   KeyRound,
   Network,
+  Play,
   ShieldCheck,
   TerminalSquare,
   UsersRound,
   Wrench,
 } from 'lucide-react';
+import { useAuth } from '../auth/useAuth';
+import { API_BASE_URL, ApiError, apiFetch } from '../lib/api';
 import './Docs.css';
 
 const sections = [
   { id: 'overview', label: '能力总览', icon: BookOpen },
   { id: 'flow', label: '登录与授权', icon: KeyRound },
   { id: 'metadata', label: '协议端点', icon: Network },
-  { id: 'security', label: '安全能力', icon: ShieldCheck },
+  { id: 'security', label: '安全边界', icon: ShieldCheck },
   { id: 'workbench', label: '用户与后台', icon: UsersRound },
+  { id: 'interface-lab', label: '接口工作台', icon: ClipboardCheck },
   { id: 'deploy', label: '部署说明', icon: Wrench },
 ] as const;
 
 type SectionId = (typeof sections)[number]['id'];
+type CheckStatus = 'idle' | 'running' | 'ok' | 'error' | 'blocked';
+type CheckResult = {
+  status: CheckStatus;
+  message: string;
+};
+type CheckKey =
+  | 'health'
+  | 'discovery'
+  | 'oauthMetadata'
+  | 'jwks'
+  | 'captcha'
+  | 'csrf'
+  | 'me'
+  | 'applications'
+  | 'accessRequests'
+  | 'adminUsers'
+  | 'adminClients'
+  | 'adminGrants'
+  | 'adminAccessRequests'
+  | 'scimConfig'
+  | 'scimSchemas'
+  | 'scimResourceTypes';
 
-const discoveryUrl = 'https://oauth-test.nazo.run/.well-known/openid-configuration';
+type BrowserCheck = {
+  key: CheckKey;
+  name: string;
+  method: 'GET';
+  path: string;
+  group: '公开接口' | '登录后接口' | '管理员接口' | 'SCIM 元数据';
+  auth?: 'user' | 'admin';
+  mode: 'fetch' | 'api';
+};
+
+const discoveryUrl = `${API_BASE_URL}/.well-known/openid-configuration`;
 const authorizeExample =
-  'https://oauth-test.nazo.run/authorize?response_type=code&client_id=your_client_id&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&scope=openid%20profile&state=random_state&nonce=random_nonce&code_challenge=base64url_sha256&code_challenge_method=S256';
+  `${API_BASE_URL}/authorize?response_type=code&client_id=your_client_id` +
+  '&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&scope=openid%20profile' +
+  '&state=random_state&nonce=random_nonce&code_challenge=base64url_sha256' +
+  '&code_challenge_method=S256';
 const tokenExample = `POST /token
 Content-Type: application/x-www-form-urlencoded
 
@@ -37,39 +78,144 @@ client_id=your_client_id&
 code_verifier=original_pkce_verifier`;
 
 const endpointGroups = [
-  ['发现配置', '/.well-known/openid-configuration', '读取 issuer、端点、算法、scope 和扩展能力。'],
-  ['授权端点', '/authorize', '外部应用把用户带到这里登录并确认授权。'],
-  ['令牌端点', '/token', '使用授权码、refresh token 或客户端凭据换取令牌。'],
-  ['用户信息', '/userinfo', '持有 access token 时读取 openid/profile/email 等用户信息。'],
-  ['公钥集合', '/jwks.json', '资源服务器或客户端用来验证 JWT 签名。'],
-  ['令牌检查', '/introspect', '资源服务器检查令牌状态、scope、audience 和过期时间。'],
-  ['令牌撤销', '/revoke', '撤销 refresh token 或相关授权。'],
-  ['PAR', '/par', '在高安全 profile 中提前提交授权请求参数。'],
+  ['/.well-known/openid-configuration', 'OIDC 发现配置。客户端从这里读取 issuer、端点、算法和 scope。'],
+  ['/.well-known/oauth-authorization-server', 'OAuth AS metadata。资源服务器和测试工具会读它。'],
+  ['/authorize', '浏览器授权入口。外部应用把用户带到这里登录并确认授权。'],
+  ['/authorize/consent', '授权同意页数据接口。前端 consent 页面会读取它。'],
+  ['/authorize/decision', '同意或拒绝授权。只能由当前登录用户提交。'],
+  ['/par', 'Pushed Authorization Request。高安全 profile 下由客户端服务端提交。'],
+  ['/token', '令牌端点。授权码、refresh token、client_credentials 都在这里交换。'],
+  ['/userinfo', '持有 access token 后读取用户信息。'],
+  ['/jwks.json', '公钥集合。客户端和资源服务器用它验证 JWT。'],
+  ['/introspect', '令牌检查端点。资源服务器用客户端认证调用。'],
+  ['/revoke', '令牌撤销端点。用于撤销 refresh token 或相关授权。'],
+  ['/fapi/resource', 'FAPI 资源端测试接口，用来验证 bearer、DPoP、mTLS 等边界。'],
+  ['/logout', 'OIDC RP-Initiated Logout 入口。'],
+  ['/auth/*', '登录、注册、验证码、CSRF、Passkey、MFA、个人资料和接入申请。'],
+  ['/admin/*', '用户、客户端、授权记录和接入审批。仅管理员可用。'],
+  ['/scim/v2/*', 'SCIM 配置、Schema、ResourceType 和用户同步接口。'],
 ];
 
 const featureMatrix = [
-  ['账号入口', '登录、注册、忘记密码占位、会话检查、安全退出'],
-  ['授权确认', '展示应用名、redirect URI、scope 风险和同意/拒绝动作'],
-  ['个人中心', '资料编辑、头像、授权应用历史、接入申请'],
-  ['凭据投递', '审批通过后用一次性链接读取 Client ID / Secret'],
-  ['管理后台', '用户、客户端、授权记录、接入申请审批'],
-  ['协议能力', 'Discovery、JWKS、UserInfo、Token、Introspection、Revocation、PAR'],
-  ['安全控制', 'PKCE S256、CSRF、Turnstile、sender-constrained metadata、精确 redirect URI'],
-  ['部署形态', 'React 静态托管、同源 API 反代、HTTPS/HSTS、SPA fallback'],
+  ['账号入口', '登录、注册、验证码、会话检查、退出登录、头像和资料编辑。'],
+  ['授权确认', '展示应用名、redirect URI、请求的 scope，并处理同意或拒绝。'],
+  ['个人中心', '查看授权过的应用，提交 OAuth 客户端接入申请，读取一次性凭据。'],
+  ['后台管理', '管理用户、客户端、授权记录和接入申请。'],
+  ['协议端点', 'Discovery、Authorization、Token、UserInfo、JWKS、PAR、Introspection、Revocation。'],
+  ['安全能力', 'PKCE S256、CSRF、Turnstile、redirect URI 精确匹配、audience 绑定、sender-constrained metadata。'],
+  ['外部同步', '提供 SCIM metadata 和用户同步接口，适合接企业目录。'],
+  ['测试形态', '前端可以检查浏览器可安全调用的接口；OIDF 提交应通过后端任务 API 执行。'],
 ];
 
-const securityItems = [
-  '公共客户端使用授权码 + PKCE S256，避免把 secret 暴露到浏览器。',
-  '登录、注册、资料修改和管理动作通过 CSRF header/cookie 保护。',
-  'Turnstile 可在登录和发送验证码前启用，用于拦截自动化请求。',
-  '发现文档公开 DPoP、mTLS、PAR、私钥 JWT 等服务端能力，客户端按 profile 选择。',
-  '管理员审批客户端时需要配置 redirect URI、scope、grant type 和 allowed audience。',
-  '资源服务器应检查 audience，并使用 JWKS 或 introspection 验证 access token。',
+const browserChecks: BrowserCheck[] = [
+  { key: 'health', name: '服务健康检查', method: 'GET', path: '/health', group: '公开接口', mode: 'fetch' },
+  { key: 'discovery', name: 'OIDC 发现配置', method: 'GET', path: '/.well-known/openid-configuration', group: '公开接口', mode: 'fetch' },
+  { key: 'oauthMetadata', name: 'OAuth AS metadata', method: 'GET', path: '/.well-known/oauth-authorization-server', group: '公开接口', mode: 'fetch' },
+  { key: 'jwks', name: 'JWKS 公钥', method: 'GET', path: '/jwks.json', group: '公开接口', mode: 'fetch' },
+  { key: 'captcha', name: '验证码配置', method: 'GET', path: '/auth/captcha-config', group: '公开接口', mode: 'api' },
+  { key: 'csrf', name: 'CSRF token', method: 'GET', path: '/auth/csrf', group: '公开接口', mode: 'api' },
+  { key: 'scimConfig', name: 'SCIM ServiceProviderConfig', method: 'GET', path: '/scim/v2/ServiceProviderConfig', group: 'SCIM 元数据', mode: 'fetch' },
+  { key: 'scimSchemas', name: 'SCIM Schemas', method: 'GET', path: '/scim/v2/Schemas', group: 'SCIM 元数据', mode: 'fetch' },
+  { key: 'scimResourceTypes', name: 'SCIM ResourceTypes', method: 'GET', path: '/scim/v2/ResourceTypes', group: 'SCIM 元数据', mode: 'fetch' },
+  { key: 'me', name: '当前用户', method: 'GET', path: '/auth/me', group: '登录后接口', auth: 'user', mode: 'api' },
+  { key: 'applications', name: '已授权应用', method: 'GET', path: '/auth/me/applications', group: '登录后接口', auth: 'user', mode: 'api' },
+  { key: 'accessRequests', name: '我的接入申请', method: 'GET', path: '/auth/me/access-requests', group: '登录后接口', auth: 'user', mode: 'api' },
+  { key: 'adminUsers', name: '用户列表', method: 'GET', path: '/admin/users?page=1&page_size=1', group: '管理员接口', auth: 'admin', mode: 'api' },
+  { key: 'adminClients', name: '客户端列表', method: 'GET', path: '/admin/clients?page=1&page_size=1', group: '管理员接口', auth: 'admin', mode: 'api' },
+  { key: 'adminGrants', name: '授权记录', method: 'GET', path: '/admin/grants?page=1&page_size=1', group: '管理员接口', auth: 'admin', mode: 'api' },
+  { key: 'adminAccessRequests', name: '接入审批列表', method: 'GET', path: '/admin/access-requests?page=1&page_size=1', group: '管理员接口', auth: 'admin', mode: 'api' },
 ];
+
+const serverSideOnly = [
+  ['/token', '需要客户端认证、授权码或 refresh token。不要把客户端密钥放进浏览器。'],
+  ['/par', '需要客户端认证。FAPI profile 下应由客户端服务端或测试任务调用。'],
+  ['/introspect', '资源服务器接口，需要客户端认证和待检查 token。'],
+  ['/revoke', '需要客户端认证和待撤销 token。'],
+  ['/userinfo', '需要 access token。浏览器页面不应要求用户手动粘贴生产 token。'],
+  ['/fapi/resource', '用于资源服务器边界测试，DPoP/mTLS 证明应由专门测试任务生成。'],
+];
+
+const oidfSteps = [
+  '前端负责提交测试请求、展示运行状态和下载日志。',
+  '后端任务 API 负责保存测试参数、调用 OIDF 套件、轮询结果和写入审计记录。',
+  '浏览器不保存 client secret、私钥、OIDF 账号或 runner token。',
+  '建议后端提供 /admin/oidf/runs、/admin/oidf/runs/{id}、/admin/oidf/runs/{id}/logs。',
+];
+
+function summarizePayload(value: unknown): string {
+  if (!value || typeof value !== 'object') {
+    return '接口已响应。';
+  }
+  const record = value as Record<string, unknown>;
+  if (typeof record.issuer === 'string') {
+    return `issuer: ${record.issuer}`;
+  }
+  if (Array.isArray(record.keys)) {
+    return `keys: ${record.keys.length}`;
+  }
+  if (typeof record.total === 'number') {
+    return `total: ${record.total}`;
+  }
+  if (typeof record.email === 'string') {
+    return `user: ${record.email}`;
+  }
+  if (typeof record.csrf_token === 'string') {
+    return 'csrf token 已刷新。';
+  }
+  if (typeof record.turnstile_enabled === 'boolean') {
+    return `turnstile: ${record.turnstile_enabled ? 'enabled' : 'disabled'}`;
+  }
+  if (Array.isArray(record.Resources)) {
+    return `resources: ${record.Resources.length}`;
+  }
+  return '接口已响应。';
+}
+
+function resolveCheckError(error: unknown): string {
+  if (error instanceof ApiError || error instanceof Error) {
+    return error.message;
+  }
+  return '请求失败。';
+}
+
+function statusText(result?: CheckResult): string {
+  if (!result || result.status === 'idle') {
+    return '未检查';
+  }
+  if (result.status === 'running') {
+    return '检查中';
+  }
+  if (result.status === 'ok') {
+    return '正常';
+  }
+  if (result.status === 'blocked') {
+    return '需要权限';
+  }
+  return '失败';
+}
 
 export default function Docs() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<SectionId>('overview');
   const [copied, setCopied] = useState('');
+  const [checkResults, setCheckResults] = useState<Partial<Record<CheckKey, CheckResult>>>({});
+  const [runningAll, setRunningAll] = useState(false);
+  const canAccessAdmin = user?.role === 'admin' && user.admin_level >= 1;
+
+  const groupedChecks = useMemo(() => {
+    return browserChecks.reduce<Record<BrowserCheck['group'], BrowserCheck[]>>(
+      (groups, item) => {
+        groups[item.group].push(item);
+        return groups;
+      },
+      {
+        '公开接口': [],
+        '登录后接口': [],
+        '管理员接口': [],
+        'SCIM 元数据': [],
+      }
+    );
+  }, []);
 
   const copyText = async (key: string, value: string) => {
     try {
@@ -81,9 +227,74 @@ export default function Docs() {
     }
   };
 
+  const runCheck = async (check: BrowserCheck) => {
+    if (check.auth === 'user' && !user) {
+      setCheckResults((prev) => ({
+        ...prev,
+        [check.key]: { status: 'blocked', message: '登录后才能检查。' },
+      }));
+      return;
+    }
+    if (check.auth === 'admin' && !canAccessAdmin) {
+      setCheckResults((prev) => ({
+        ...prev,
+        [check.key]: { status: 'blocked', message: '管理员登录后才能检查。' },
+      }));
+      return;
+    }
+
+    setCheckResults((prev) => ({
+      ...prev,
+      [check.key]: { status: 'running', message: '请求中...' },
+    }));
+
+    try {
+      const payload =
+        check.mode === 'api'
+          ? await apiFetch<unknown>(check.path)
+          : await fetch(`${API_BASE_URL}${check.path}`, {
+              method: check.method,
+              credentials: 'omit',
+            }).then(async (response) => {
+              if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+              }
+              const contentType = response.headers.get('content-type') ?? '';
+              if (contentType.includes('application/json')) {
+                return response.json() as Promise<unknown>;
+              }
+              return response.text();
+            });
+      setCheckResults((prev) => ({
+        ...prev,
+        [check.key]: { status: 'ok', message: summarizePayload(payload) },
+      }));
+    } catch (error) {
+      setCheckResults((prev) => ({
+        ...prev,
+        [check.key]: { status: 'error', message: resolveCheckError(error) },
+      }));
+    }
+  };
+
+  const runVisibleChecks = async () => {
+    setRunningAll(true);
+    try {
+      for (const check of browserChecks) {
+        await runCheck(check);
+      }
+    } finally {
+      setRunningAll(false);
+    }
+  };
+
+  const openAuthorizeExample = () => {
+    window.open(authorizeExample, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <motion.div
-      className="page-transition-wrap docs-page container cyber-page"
+      className="page-transition-wrap docs-page container future-page"
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -12 }}
@@ -92,7 +303,7 @@ export default function Docs() {
       <div className="docs-layout">
         <aside className="docs-sidebar" aria-label="文档目录">
           <div className="sidebar-sticky">
-            <h2 className="sidebar-title">NazoAuth manual</h2>
+            <h2 className="sidebar-title">NazoAuth 文档</h2>
             <nav className="sidebar-nav">
               {sections.map((item) => {
                 const Icon = item.icon;
@@ -117,11 +328,11 @@ export default function Docs() {
           {activeTab === 'overview' && (
             <section className="docs-section">
               <div className="docs-header">
-                <span className="docs-eyebrow">full capability map</span>
-                <h1>所有能力都围绕外部应用登录展开</h1>
+                <span className="docs-eyebrow">先看范围</span>
+                <h1>这套前端负责账号、授权和接入管理</h1>
                 <p>
-                  NazoAuth Web 是账户中心、OAuth 同意页、客户端接入入口和管理员后台的组合。
-                  它不是营销站，也不是单独的控制台；它承担 OAuth/OIDC 浏览器交互面的全部职责。
+                  NazoAuth Web 不是展示页。它承接用户登录、授权确认、个人中心、
+                  客户端接入申请和管理员后台。协议判断仍在 NazoAuth 后端。
                 </p>
               </div>
               <div className="matrix-table">
@@ -138,16 +349,16 @@ export default function Docs() {
           {activeTab === 'flow' && (
             <section className="docs-section">
               <div className="docs-header">
-                <span className="docs-eyebrow">authorization code + pkce</span>
-                <h1>浏览器登录和授权确认流程</h1>
+                <span className="docs-eyebrow">Authorization Code + PKCE</span>
+                <h1>外部应用应这样接入登录</h1>
                 <p>
-                  外部应用生成 state、nonce、code challenge，并把用户重定向到授权端点。
-                  用户在 NazoAuth 登录后确认 scope，授权服务器再把 code 返回给客户端。
+                  应用生成 state、nonce 和 code challenge，把用户带到授权端点。
+                  用户登录并确认授权后，应用后端用 code 和 code_verifier 换取 token。
                 </p>
               </div>
               <div className="code-block-wrapper">
                 <div className="code-header">
-                  <span>Authorization request</span>
+                  <span>授权请求</span>
                   <button
                     className="copy-btn"
                     title="复制示例"
@@ -161,7 +372,7 @@ export default function Docs() {
               </div>
               <div className="code-block-wrapper">
                 <div className="code-header">
-                  <span>Token exchange</span>
+                  <span>换取 token</span>
                   <button
                     className="copy-btn"
                     title="复制示例"
@@ -174,10 +385,10 @@ export default function Docs() {
                 <pre><code>{tokenExample}</code></pre>
               </div>
               <div className="docs-card">
-                <h2>同意页展示内容</h2>
+                <h2>浏览器里只做该做的事</h2>
                 <p>
-                  同意页会展示当前账号、接入应用名称、redirect URI、请求的 scope 和敏感权限提示。
-                  用户可以同意继续，也可以拒绝授权。
+                  登录页和同意页可以在浏览器里完成。Client secret、私钥签名、
+                  token introspection 和 OIDF runner token 不应进入前端。
                 </p>
               </div>
             </section>
@@ -186,11 +397,10 @@ export default function Docs() {
           {activeTab === 'metadata' && (
             <section className="docs-section">
               <div className="docs-header">
-                <span className="docs-eyebrow">protocol endpoints</span>
-                <h1>协议端点和发现配置</h1>
+                <span className="docs-eyebrow">端点清单</span>
+                <h1>客户端先读发现配置，再发起协议请求</h1>
                 <p>
-                  客户端和资源服务器应从发现端点读取当前能力，不要把 issuer、JWKs、
-                  支持算法或 endpoint URL 写死在业务代码里。
+                  不要在业务系统里写死 issuer、JWKs 或算法列表。发现配置才是当前环境的准确信息。
                 </p>
               </div>
               <div className="code-block-wrapper">
@@ -208,10 +418,9 @@ export default function Docs() {
                 <pre><code>GET {discoveryUrl}</code></pre>
               </div>
               <div className="endpoint-doc-grid">
-                {endpointGroups.map(([name, path, desc]) => (
+                {endpointGroups.map(([path, desc]) => (
                   <article key={path} className="endpoint-doc-card">
                     <code>{path}</code>
-                    <h2>{name}</h2>
                     <p>{desc}</p>
                   </article>
                 ))}
@@ -222,17 +431,28 @@ export default function Docs() {
           {activeTab === 'security' && (
             <section className="docs-section">
               <div className="docs-header">
-                <span className="docs-eyebrow">security boundary</span>
-                <h1>安全能力和接入边界</h1>
+                <span className="docs-eyebrow">边界要清楚</span>
+                <h1>前端只拿浏览器该拿的数据</h1>
                 <p>
-                  前端只负责交互和同源 API 调用；授权判断、令牌签发、客户端认证、
-                  redirect URI 校验和用户授权决策都由后端执行。
+                  NazoAuth Web 可以检查公开 metadata 和当前登录会话，但不会把密钥、
+                  私钥、access token 或 OIDF 凭据塞进浏览器。
                 </p>
               </div>
               <div className="docs-card">
-                <h2>需要客户端配合的事项</h2>
+                <h2>只能在服务端或测试任务里做</h2>
+                <div className="server-only-list">
+                  {serverSideOnly.map(([path, reason]) => (
+                    <div key={path} className="server-only-row">
+                      <code>{path}</code>
+                      <span>{reason}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="docs-card">
+                <h2>OIDF 自动化测试入口</h2>
                 <ul className="docs-list">
-                  {securityItems.map((item) => (
+                  {oidfSteps.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
@@ -243,11 +463,10 @@ export default function Docs() {
           {activeTab === 'workbench' && (
             <section className="docs-section">
               <div className="docs-header">
-                <span className="docs-eyebrow">user and admin workbench</span>
-                <h1>用户中心与管理员后台</h1>
+                <span className="docs-eyebrow">日常操作</span>
+                <h1>用户中心和后台是同一个接入流程的两面</h1>
                 <p>
-                  普通用户管理自己的资料、授权应用和接入申请；管理员处理用户、客户端、
-                  授权记录和审批流。
+                  普通用户提交站点接入申请。管理员审核后创建客户端，密钥通过一次性链接交付。
                 </p>
               </div>
               <div className="docs-two-col">
@@ -255,7 +474,7 @@ export default function Docs() {
                   <h2>用户中心</h2>
                   <ul className="docs-list">
                     <li>编辑显示昵称和头像。</li>
-                    <li>查看已经授权过的应用和最近授权 scope。</li>
+                    <li>查看已经授权过的应用。</li>
                     <li>提交 OAuth 客户端接入申请。</li>
                     <li>读取一次性客户端凭据投递链接。</li>
                   </ul>
@@ -273,13 +492,79 @@ export default function Docs() {
             </section>
           )}
 
+          {activeTab === 'interface-lab' && (
+            <section className="docs-section">
+              <div className="docs-header">
+                <span className="docs-eyebrow">真实请求</span>
+                <h1>用当前前端检查 NazoAuth 接口</h1>
+                <p>
+                  这里会直接请求当前环境。公开接口可以立即检查；登录后接口需要当前会话；
+                  管理员接口需要管理员权限。
+                </p>
+              </div>
+              <div className="interface-toolbar">
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={runningAll}
+                  onClick={() => void runVisibleChecks()}
+                >
+                  <Play size={16} />
+                  <span>{runningAll ? '检查中' : '检查可用接口'}</span>
+                </button>
+                <button type="button" className="btn-secondary" onClick={openAuthorizeExample}>
+                  <KeyRound size={16} />
+                  <span>打开授权请求示例</span>
+                </button>
+              </div>
+              {Object.entries(groupedChecks).map(([group, checks]) => (
+                <div className="interface-group" key={group}>
+                  <h2>{group}</h2>
+                  <div className="interface-grid">
+                    {checks.map((check) => {
+                      const result = checkResults[check.key];
+                      return (
+                        <article className="interface-card" key={check.key}>
+                          <div>
+                            <strong>{check.name}</strong>
+                            <code>{check.method} {check.path}</code>
+                          </div>
+                          <span className={`interface-status ${result?.status ?? 'idle'}`}>
+                            {statusText(result)}
+                          </span>
+                          <p>{result?.message ?? '还没有请求。'}</p>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            disabled={result?.status === 'running'}
+                            onClick={() => void runCheck(check)}
+                          >
+                            <CheckCircle2 size={15} />
+                            <span>检查</span>
+                          </button>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+              <div className="docs-card">
+                <h2>关于 OIDF 提交</h2>
+                <p>
+                  前端已经留出工作台位置，但提交 OIDF 不能只靠浏览器完成。
+                  下一步应在 NazoAuth 后端增加受管理员保护的测试任务 API，再让这个页面发起任务、查看状态和下载日志。
+                </p>
+              </div>
+            </section>
+          )}
+
           {activeTab === 'deploy' && (
             <section className="docs-section">
               <div className="docs-header">
-                <span className="docs-eyebrow">static deployment</span>
-                <h1>前后端分离部署方式</h1>
+                <span className="docs-eyebrow">静态部署</span>
+                <h1>前后端分离可以保留协议安全边界</h1>
                 <p>
-                  NazoAuth Web 可以作为纯静态 React 应用部署。测试环境使用 Angie 托管静态资源，
+                  NazoAuth Web 可以作为静态 React 应用部署。测试环境由 Angie 托管静态资源，
                   并把协议/API 路径同源反代到 NazoAuth 后端。
                 </p>
               </div>
@@ -289,7 +574,7 @@ export default function Docs() {
                   <li>静态文件目录：<code>/usr/local/angie/html/accounts-test</code></li>
                   <li>前端路由：<code>/</code>、<code>/auth</code>、<code>/consent</code>、<code>/profile</code>、<code>/admin</code></li>
                   <li>API 路由：<code>/auth/*</code>、<code>/admin/*</code>、<code>/authorize</code>、<code>/token</code>、<code>/.well-known/*</code></li>
-                  <li>构建命令：<code>npm run test</code></li>
+                  <li>验证命令：<code>npm run test</code></li>
                 </ul>
               </div>
             </section>
