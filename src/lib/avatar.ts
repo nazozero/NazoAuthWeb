@@ -1,6 +1,7 @@
 import { API_BASE_URL } from './api';
+import { publicAsset } from './publicAsset';
 
-export const DEFAULT_AVATAR_PATH = '/icons/default-avatar.svg';
+export const DEFAULT_AVATAR_PATH = publicAsset('icons/default-avatar.svg');
 
 function normalizeApiBasePath(): string {
   try {

@@ -43,6 +43,11 @@ export class ApiError extends Error {
   }
 }
 
+type CsrfMode = 'auto' | 'defer';
+type ApiFetchInit = RequestInit & {
+  csrf?: CsrfMode;
+};
+
 function resolveMessage(payload: JsonValue, fallback: string): string {
   if (!payload || Array.isArray(payload)) {
     return fallback;
@@ -110,12 +115,13 @@ async function requestFreshCsrfToken(): Promise<string | null> {
 
 export async function apiFetch<T>(
   path: string,
-  init: RequestInit = {}
+  init: ApiFetchInit = {}
 ): Promise<T> {
+  const { csrf = 'auto', ...fetchInit } = init;
   const method = (init.method ?? 'GET').toUpperCase();
   const headers = new Headers(init.headers ?? {});
   let csrfToken = getCookie(CSRF_COOKIE_NAME) ?? inMemoryCsrfToken;
-  if (isUnsafeMethod(method) && !csrfToken) {
+  if (csrf === 'auto' && isUnsafeMethod(method) && !csrfToken) {
     csrfToken = await requestFreshCsrfToken();
   }
   if (csrfToken && !headers.has('X-CSRF-Token')) {
@@ -124,7 +130,7 @@ export async function apiFetch<T>(
   }
 
   let response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
+    ...fetchInit,
     method,
     credentials: 'include',
     headers,
@@ -136,7 +142,7 @@ export async function apiFetch<T>(
     if (refreshedToken) {
       headers.set('X-CSRF-Token', refreshedToken);
       response = await fetch(`${API_BASE_URL}${path}`, {
-        ...init,
+        ...fetchInit,
         method,
         credentials: 'include',
         headers,
@@ -149,7 +155,7 @@ export async function apiFetch<T>(
     if (response.status === 401) {
       clearSessionHint();
     }
-    throw new ApiError(resolveMessage(payload, '请求失败'), response.status, payload);
+    throw new ApiError(resolveMessage(payload, 'Request failed'), response.status, payload);
   }
 
   return payload as T;

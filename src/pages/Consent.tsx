@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle,
   ArrowRight,
@@ -16,6 +16,12 @@ import { buildAuthRedirectWithNext, buildCurrentPath } from '../auth/next';
 import { useAuth } from '../auth/useAuth';
 import { API_BASE_URL, ApiError, apiFetch } from '../lib/api';
 import { resolveAvatarUrl } from '../lib/avatar';
+import {
+  contentSwitchVariants,
+  pageVariants,
+  revealContainerVariants,
+  revealItemVariants,
+} from '../lib/motion';
 import type { ConsentView } from '../types/auth';
 import './Consent.css';
 
@@ -27,33 +33,33 @@ type ScopeMeta = {
 
 const SCOPE_META: Record<string, ScopeMeta> = {
   openid: {
-    title: '账户唯一标识',
-    description: '用于标识你在 NazoAuth 中的账号主体。',
+    title: 'Account identifier',
+    description: 'Identifies your account subject in NazoAuth.',
     level: 'basic',
   },
   profile: {
-    title: '公开资料信息',
-    description: '允许读取昵称、头像等基础资料字段。',
+    title: 'Profile details',
+    description: 'Allows access to basic profile fields such as name and avatar.',
     level: 'basic',
   },
   email: {
-    title: '邮箱地址',
-    description: '允许读取与你账号绑定的邮箱地址。',
+    title: 'Email address',
+    description: 'Allows access to the email address on this account.',
     level: 'sensitive',
   },
   offline_access: {
-    title: '离线访问权限',
-    description: '允许客户端在你离线时刷新会话，需谨慎授予。',
+    title: 'Offline access',
+    description: 'Allows the client to refresh access while you are away.',
     level: 'sensitive',
   },
   'nazo_admin:read': {
-    title: '管理读权限',
-    description: '允许访问平台管理读接口，适用于受控后台工具。',
+    title: 'Admin read access',
+    description: 'Allows read access to controlled platform administration APIs.',
     level: 'sensitive',
   },
   'nazo_admin:write': {
-    title: '管理写权限',
-    description: '允许调用管理写接口，影响范围较高。',
+    title: 'Admin write access',
+    description: 'Allows write access to platform administration APIs.',
     level: 'sensitive',
   },
 };
@@ -64,7 +70,7 @@ function resolveScopeMeta(scope: string): ScopeMeta {
   }
   return {
     title: scope,
-    description: '该权限由接入方自定义声明，请确认来源可信后再授权。',
+    description: 'This scope is defined by the client. Confirm the source before approving.',
     level: 'sensitive',
   };
 }
@@ -73,7 +79,7 @@ function resolveErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
   }
-  return '加载授权信息失败，请重新发起授权流程。';
+  return 'Could not load the authorization request. Start the flow again.';
 }
 
 export default function Consent() {
@@ -92,7 +98,7 @@ export default function Consent() {
   useEffect(() => {
     if (!requestId) {
       setConsentView(null);
-      setErrorMsg('缺少 request_id，无法继续授权。');
+      setErrorMsg('Missing request_id. Start the authorization flow again.');
       setLoading(false);
       return;
     }
@@ -144,24 +150,24 @@ export default function Consent() {
     .split('@')[0]
     .replace(/\s+/g, '_')
     .toLowerCase();
-  const userName = user?.display_name || user?.email?.split('@')[0] || '当前账号';
+  const userName = user?.display_name || user?.email?.split('@')[0] || 'current account';
   const userAvatar = resolveAvatarUrl(user?.avatar_url);
 
   return (
     <motion.div
       className="page-transition-wrap consent-page"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.25 }}
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
     >
       <div className="consent-bg-grid" aria-hidden="true" />
 
       <div className="consent-shell">
-        <section className="consent-user-strip glass">
+        <motion.section className="consent-user-strip glass" layout>
           <div className="consent-user-avatar-wrap">
             {user ? (
-              <img src={userAvatar} alt="当前用户头像" className="consent-user-avatar" />
+              <img src={userAvatar} alt="Current user avatar" className="consent-user-avatar" />
             ) : (
               <UserRound size={18} />
             )}
@@ -170,35 +176,61 @@ export default function Consent() {
             <strong>{userName}</strong>
             <p>
               <AtSign size={14} />
-              <span>以 @{userTag} 的身份授权</span>
+              <span>Approving as @{userTag}</span>
             </p>
           </div>
-        </section>
+        </motion.section>
 
-        <section className="consent-card glass">
+        <motion.section className="consent-card glass" layout>
           <header className="consent-head">
             <span className="consent-icon">
               <ShieldCheck size={20} />
             </span>
             <div>
-              <h1>确认授权</h1>
-              <p>请确认是否允许该应用访问你的 NazoAuth 账号数据。</p>
+              <h1>Review authorization</h1>
+              <p>Confirm whether this client can access data from your NazoAuth account.</p>
             </div>
           </header>
 
-          {loading && <div className="consent-status">正在加载授权请求...</div>}
+          <AnimatePresence mode="wait" initial={false}>
+          {loading && (
+            <motion.div
+              key="consent-loading"
+              className="consent-status"
+              variants={contentSwitchVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            >
+              Loading authorization request...
+            </motion.div>
+          )}
 
           {!loading && errorMsg && (
-            <div className="consent-error">
+            <motion.div
+              key="consent-error"
+              className="consent-error"
+              variants={contentSwitchVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            >
               <AlertTriangle size={18} />
               <span>{errorMsg}</span>
-            </div>
+            </motion.div>
           )}
 
           {!loading && consentView && (
-            <>
+            <motion.div
+              key="consent-ready"
+              variants={contentSwitchVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              layout
+            >
               <section className="consent-app-box">
-                <div className="consent-app-title">请求来源</div>
+                <div className="consent-app-title">Requesting client</div>
                 <div className="consent-app-meta">
                   <div className="consent-app-meta-item">
                     <span className="consent-app-meta-icon">
@@ -206,7 +238,7 @@ export default function Consent() {
                     </span>
                     <div>
                       <strong>{consentView.client_name}</strong>
-                      <p>应用名称</p>
+                      <p>Client name</p>
                     </div>
                   </div>
                   <div className="consent-app-meta-item">
@@ -224,22 +256,30 @@ export default function Consent() {
               <section className="consent-scope-box">
                 <div className="consent-block-title">
                   <LockKeyhole size={16} />
-                  <span>本次请求的权限</span>
+                  <span>Requested permissions</span>
                 </div>
-                <ul className="consent-scope-list">
+                <motion.ul
+                  className="consent-scope-list"
+                  variants={revealContainerVariants}
+                  initial="initial"
+                  animate="animate"
+                  layout
+                >
                   {scopeItems.map((item) => (
-                    <li
+                    <motion.li
                       key={item.scope}
                       className={`consent-scope-item ${
                         item.meta.level === 'sensitive' ? 'sensitive' : 'basic'
                       }`}
+                      variants={revealItemVariants}
+                      layout
                     >
                       <div className="scope-line-1">{item.meta.title}</div>
                       <div className="scope-line-2">{item.meta.description}</div>
                       <code>{item.scope}</code>
-                    </li>
+                    </motion.li>
                   ))}
-                </ul>
+                </motion.ul>
               </section>
 
               <form action={decisionEndpoint} method="post" className="consent-actions">
@@ -249,31 +289,46 @@ export default function Consent() {
                   name="csrf_token"
                   value={consentView.csrf_token || ''}
                 />
-                <button type="submit" name="decision" value="deny" className="consent-btn deny">
+                <button
+                  id="nazo-consent-deny"
+                  type="submit"
+                  name="decision"
+                  value="deny"
+                  className="consent-btn deny"
+                >
                   <CircleSlash size={16} />
-                  <span>拒绝</span>
+                  <span>Deny</span>
                 </button>
                 <button
+                  id="nazo-consent-approve"
                   type="submit"
                   name="decision"
                   value="approve"
                   className="consent-btn approve"
                 >
-                  <span>同意并继续</span>
+                  <span>Approve and continue</span>
                   <ArrowRight size={16} />
                 </button>
               </form>
-            </>
+            </motion.div>
           )}
 
           {!loading && !consentView && (
-            <div className="consent-fallback">
+            <motion.div
+              key="consent-fallback"
+              className="consent-fallback"
+              variants={contentSwitchVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            >
               <Link to="/auth" className="btn-primary">
-                返回登录
+                Back to sign in
               </Link>
-            </div>
+            </motion.div>
           )}
-        </section>
+          </AnimatePresence>
+        </motion.section>
 
         <div className="consent-powered">
           <span>Secured by NazoAuth</span>

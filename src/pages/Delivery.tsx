@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -12,6 +12,13 @@ import { Link, Navigate, useLocation } from 'react-router-dom';
 import { buildAuthRedirectWithNext } from '../auth/next';
 import { useAuth } from '../auth/useAuth';
 import { ApiError, apiFetch } from '../lib/api';
+import {
+  alertVariants,
+  contentSwitchVariants,
+  pageVariants,
+  revealContainerVariants,
+  revealItemVariants,
+} from '../lib/motion';
 import type { ClientCredentialDeliveryResponse } from '../types/auth';
 import './Delivery.css';
 
@@ -20,7 +27,7 @@ function formatDateTime(value: string): string {
   if (Number.isNaN(date.getTime())) {
     return value;
   }
-  return date.toLocaleString('zh-CN', { hour12: false });
+  return date.toLocaleString('en-US', { hour12: false });
 }
 
 function resolveErrorMessage(error: unknown, fallback: string): string {
@@ -71,7 +78,7 @@ export default function Delivery() {
         setDeliveryPayload(payload);
       } catch (error) {
         setDeliveryPayload(null);
-        setErrorMsg(resolveErrorMessage(error, '一次性凭据读取失败。'));
+        setErrorMsg(resolveErrorMessage(error, 'One-time credential read failed.'));
       } finally {
         setLoadingDelivery(false);
       }
@@ -91,7 +98,7 @@ export default function Delivery() {
       await navigator.clipboard.writeText(value);
       setCopiedKey(key);
     } catch {
-      setErrorMsg('复制失败，请手动复制。');
+      setErrorMsg('Copy failed. Copy it manually.');
     }
   };
 
@@ -102,7 +109,7 @@ export default function Delivery() {
 
   if (loading || (!user && !sessionChecked)) {
     return (
-      <div className="container delivery-loading">正在验证会话并准备一次性凭据页面...</div>
+      <div className="container delivery-loading">Checking your session and preparing one-time credentials...</div>
     );
   }
 
@@ -115,10 +122,10 @@ export default function Delivery() {
       <div className="container delivery-loading">
         <div className="glass delivery-state-card">
           <AlertTriangle size={20} />
-          <h1>缺少凭据链接参数</h1>
-          <p>当前 URL 不包含一次性 token，请使用邮件中的完整链接访问。</p>
+          <h1>Missing credential link parameter</h1>
+          <p>The current URL does not include a one-time token. Use the full link from the email.</p>
           <Link to="/profile?tab=access-requests" className="btn-secondary">
-            返回接入申请
+            Back to access requests
           </Link>
         </div>
       </div>
@@ -132,7 +139,7 @@ export default function Delivery() {
         { label: 'Client Type', value: deliveryPayload.client_type },
         {
           label: 'Client Secret',
-          value: deliveryPayload.client_secret || '（public 客户端无密钥）',
+          value: deliveryPayload.client_secret || 'No secret for public clients',
           sensitive: Boolean(deliveryPayload.client_secret),
         },
         {
@@ -157,49 +164,90 @@ export default function Delivery() {
   return (
     <motion.div
       className="page-transition-wrap delivery-page"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
     >
       <div className="delivery-bg-grid" />
       <div className="container delivery-container">
-        <header className="glass delivery-header">
-          <h1>一次性凭据页面</h1>
-          <p>账号：{user.email}</p>
-        </header>
+        <motion.header className="glass delivery-header" layout>
+          <h1>One-time credentials</h1>
+          <p>Account: {user.email}</p>
+        </motion.header>
 
-        <section className="glass delivery-warning-card">
+        <motion.section className="glass delivery-warning-card" layout>
           <div className="delivery-warning-head">
             <ShieldAlert size={18} />
-            <strong>高敏感信息 · 阅后即焚</strong>
+            <strong>Highly sensitive. Read once.</strong>
           </div>
           <ul>
-            <li>此链接仅可读取一次，读取后服务端立即销毁。</li>
-            <li>请先复制并安全保存，再离开本页面。</li>
-            <li>禁止截图、转发或在公共环境展示。</li>
+            <li>This link can be read only once; the server destroys it after use.</li>
+            <li>Copy and store the values securely before leaving this page.</li>
+            <li>Do not screenshot, forward, or display this in public environments.</li>
           </ul>
-        </section>
+        </motion.section>
 
-        {errorMsg && <div className="delivery-alert error">{errorMsg}</div>}
+        <AnimatePresence mode="wait" initial={false}>
+          {errorMsg && (
+            <motion.div
+              key="delivery-error"
+              className="delivery-alert error"
+              variants={alertVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            >
+              {errorMsg}
+            </motion.div>
+          )}
 
-        {loadingDelivery && <div className="delivery-placeholder">正在读取一次性凭据...</div>}
+          {loadingDelivery && (
+            <motion.div
+              key="delivery-loading"
+              className="delivery-placeholder"
+              variants={contentSwitchVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            >
+              Reading one-time credentials...
+            </motion.div>
+          )}
 
-        {!loadingDelivery && !errorMsg && deliveryPayload && !dismissed && (
-          <>
-            <section className="glass delivery-main-card">
+          {!loadingDelivery && !errorMsg && deliveryPayload && !dismissed && (
+          <motion.div
+            key="delivery-content"
+            variants={contentSwitchVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            layout
+          >
+            <motion.section className="glass delivery-main-card" layout>
               <div className="delivery-main-head">
-                <strong>凭据详情</strong>
-                <span>失效时间：{formatDateTime(deliveryPayload.expires_at)}</span>
+                <strong>Credential details</strong>
+                <span>Expires: {formatDateTime(deliveryPayload.expires_at)}</span>
               </div>
               <p className="delivery-read-once-note">{deliveryPayload.read_once_notice}</p>
-              <div className="delivery-list">
+              <motion.div
+                className="delivery-list"
+                variants={revealContainerVariants}
+                initial="initial"
+                animate="animate"
+                layout
+              >
                 {kvItems.map((item) => {
                   const key = `${item.label}:${item.value}`;
-                  const canCopy = item.value !== '-' && !item.value.includes('无密钥');
+                  const canCopy = item.value !== '-' && !item.value.includes('No secret');
                   const copied = copiedKey === key;
                   return (
-                    <article key={key} className={`delivery-item ${item.sensitive ? 'sensitive' : ''}`}>
+                    <motion.article
+                      key={key}
+                      className={`delivery-item ${item.sensitive ? 'sensitive' : ''}`}
+                      variants={revealItemVariants}
+                      layout
+                    >
                       <div className="delivery-item-head">
                         <span>{item.label}</span>
                         {canCopy && (
@@ -209,16 +257,16 @@ export default function Delivery() {
                             onClick={() => void handleCopy(key, item.value)}
                           >
                             {copied ? <ClipboardCheck size={14} /> : <Clipboard size={14} />}
-                            <span>{copied ? '已复制' : '复制'}</span>
+                            <span>{copied ? 'Copied' : 'Copy'}</span>
                           </button>
                         )}
                       </div>
                       <pre>{item.value}</pre>
-                    </article>
+                    </motion.article>
                   );
                 })}
-              </div>
-            </section>
+              </motion.div>
+            </motion.section>
 
             <section className="delivery-actions">
               <button
@@ -230,25 +278,34 @@ export default function Delivery() {
                 }}
               >
                 <EyeOff size={16} />
-                <span>我已保存，立即隐藏敏感信息</span>
+                <span>I saved it. Hide sensitive values now.</span>
               </button>
               <Link to="/profile?tab=access-requests" className="btn-secondary">
-                返回接入申请
+                Back to access requests
               </Link>
             </section>
-          </>
-        )}
+          </motion.div>
+          )}
 
-        {!loadingDelivery && !errorMsg && !deliveryPayload && dismissed && (
-          <div className="glass delivery-state-card">
+          {!loadingDelivery && !errorMsg && !deliveryPayload && dismissed && (
+          <motion.div
+            key="delivery-hidden"
+            className="glass delivery-state-card"
+            variants={contentSwitchVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            layout
+          >
             <CheckCircle2 size={20} />
-            <h2>敏感信息已隐藏</h2>
-            <p>如需再次查看，请使用新的审批邮件链接（旧链接不可复用）。</p>
+            <h2>Sensitive values are hidden</h2>
+            <p>To view credentials again, use a new approval email link. Old links cannot be reused.</p>
             <Link to="/profile?tab=access-requests" className="btn-secondary">
-              返回接入申请
+              Back to access requests
             </Link>
-          </div>
-        )}
+          </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </motion.div>
   );

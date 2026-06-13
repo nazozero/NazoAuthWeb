@@ -1,15 +1,18 @@
 import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { AuthProvider } from './auth/AuthContext';
 import Navbar from './components/Navbar';
 import RequireAuth from './components/RequireAuth';
 import RequireGuest from './components/RequireGuest';
 import Footer from './components/Footer';
+import { I18nProvider, useI18n } from './i18n';
+import { pageVariants } from './lib/motion';
 import './App.css';
 
 const Home = lazy(() => import('./pages/Home'));
 const Auth = lazy(() => import('./pages/Auth'));
+const Security = lazy(() => import('./pages/Security'));
 const Docs = lazy(() => import('./pages/Docs'));
 const Contact = lazy(() => import('./pages/Contact'));
 const Profile = lazy(() => import('./pages/Profile'));
@@ -18,10 +21,19 @@ const Admin = lazy(() => import('./pages/Admin'));
 const Delivery = lazy(() => import('./pages/Delivery'));
 
 function RouteLoadingFallback() {
+  const { t } = useI18n();
+
   return (
-    <div className="container" style={{ padding: '64px 16px', textAlign: 'center' }}>
-      页面加载中...
-    </div>
+    <motion.div
+      className="container"
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      style={{ padding: '64px 16px', textAlign: 'center' }}
+    >
+      {t('common.loadingPage')}
+    </motion.div>
   );
 }
 
@@ -32,6 +44,7 @@ function MainRoutes() {
       <Suspense fallback={<RouteLoadingFallback />}>
         <Routes location={location} key={location.pathname}>
           <Route path="/" element={<Home />} />
+          <Route path="/security" element={<Security />} />
           <Route
             path="/auth"
             element={
@@ -83,12 +96,16 @@ function AppShell() {
 }
 
 function App() {
+  const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || undefined;
+
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <AppShell />
-      </BrowserRouter>
-    </AuthProvider>
+    <I18nProvider>
+      <AuthProvider>
+        <BrowserRouter basename={basename}>
+          <AppShell />
+        </BrowserRouter>
+      </AuthProvider>
+    </I18nProvider>
   );
 }
 

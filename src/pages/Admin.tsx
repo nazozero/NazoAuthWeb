@@ -20,6 +20,14 @@ import { Link, Navigate } from 'react-router-dom';
 import { buildAuthRedirectWithNext } from '../auth/next';
 import { useAuth } from '../auth/useAuth';
 import { API_BASE_URL, ApiError, apiFetch } from '../lib/api';
+import {
+  contentSwitchVariants,
+  modalOverlayVariants,
+  modalPanelVariants,
+  pageVariants,
+  revealContainerVariants,
+  revealItemVariants,
+} from '../lib/motion';
 import type {
   AdminAccessRequestItem,
   AdminAccessRequestListResponse,
@@ -71,9 +79,9 @@ type PreparedClientForm =
 
 const DEFAULT_SCOPE_OPTIONS = ['openid', 'profile', 'email'] as const;
 const GRANT_TYPE_OPTIONS = [
-  { value: 'authorization_code', label: 'authorization_code', description: '标准授权码流程（推荐）' },
-  { value: 'refresh_token', label: 'refresh_token', description: '允许换取新的 access token' },
-  { value: 'client_credentials', label: 'client_credentials', description: '仅服务端到服务端场景' },
+  { value: 'authorization_code', label: 'authorization_code', description: 'Standard authorization code flow (recommended)' },
+  { value: 'refresh_token', label: 'refresh_token', description: 'Allows refresh token exchange for new access tokens' },
+  { value: 'client_credentials', label: 'client_credentials', description: 'Server-to-server only' },
 ] as const;
 
 function resolveErrorMessage(error: unknown, fallback: string): string {
@@ -152,46 +160,46 @@ function enforceClientFormRules(form: ClientFormModel): ClientFormModel {
 function prepareClientForm(form: ClientFormModel): PreparedClientForm {
   const clientName = form.clientName.trim();
   if (!clientName) {
-    return { ok: false, message: '请填写应用名称。' };
+    return { ok: false, message: 'Enter an application name.' };
   }
 
   const redirectUris = uniqueStrings(form.redirectUris);
   if (form.grantTypes.includes('authorization_code') && redirectUris.length === 0) {
-    return { ok: false, message: 'authorization_code 模式必须至少提供一个回调地址。' };
+    return { ok: false, message: 'authorization_code requires at least one redirect URI.' };
   }
   if (redirectUris.some((uri) => !isValidAbsoluteUrl(uri))) {
-    return { ok: false, message: '存在不合法的回调地址，请使用完整 URL。' };
+    return { ok: false, message: 'One or more redirect URIs are invalid. Use absolute URLs.' };
   }
 
   const scopes = uniqueStrings(form.scopes);
   if (scopes.length === 0) {
-    return { ok: false, message: '请至少选择一个 scope。' };
+    return { ok: false, message: 'Select at least one scope.' };
   }
   const allowedAudiences = uniqueStrings(form.allowedAudiences);
   if (allowedAudiences.length === 0) {
-    return { ok: false, message: '请至少配置一个 allowed audience。' };
+    return { ok: false, message: 'Configure at least one allowed audience.' };
   }
 
   const grantTypes = uniqueStrings(form.grantTypes);
   if (grantTypes.length === 0) {
-    return { ok: false, message: '请至少选择一个 grant type。' };
+    return { ok: false, message: 'Select at least one grant type.' };
   }
   if (grantTypes.includes('client_credentials') && scopes.includes('openid')) {
     return {
       ok: false,
-      message: 'client_credentials 客户端不允许包含 openid scope。',
+      message: 'client_credentials clients cannot include the openid scope.',
     };
   }
 
   if (form.clientType === 'public') {
     if (grantTypes.includes('client_credentials')) {
-      return { ok: false, message: 'public 客户端不支持 client_credentials。' };
+      return { ok: false, message: 'Public clients do not support client_credentials.' };
     }
     if (form.tokenEndpointAuthMethod !== 'none') {
-      return { ok: false, message: 'public 客户端必须使用 token_endpoint_auth_method=none。' };
+      return { ok: false, message: 'Public clients must use token_endpoint_auth_method=none.' };
     }
   } else if (form.tokenEndpointAuthMethod === 'none') {
-    return { ok: false, message: 'confidential 客户端必须使用 client_secret_basic 或 client_secret_post。' };
+    return { ok: false, message: 'Confidential clients must use client_secret_basic or client_secret_post.' };
   }
 
   return {
@@ -418,7 +426,7 @@ export default function Admin() {
         if (requestId !== usersRequestIdRef.current) {
           return;
         }
-        setFeedbackError(resolveErrorMessage(error, '加载用户列表失败。'));
+        setFeedbackError(resolveErrorMessage(error, 'Could not load users.'));
       } finally {
         if (requestId === usersRequestIdRef.current) {
           setUsersLoading(false);
@@ -451,7 +459,7 @@ export default function Admin() {
         if (requestId !== clientsRequestIdRef.current) {
           return;
         }
-        setFeedbackError(resolveErrorMessage(error, '加载应用列表失败。'));
+        setFeedbackError(resolveErrorMessage(error, 'Could not load clients.'));
       } finally {
         if (requestId === clientsRequestIdRef.current) {
           setClientsLoading(false);
@@ -483,7 +491,7 @@ export default function Admin() {
         if (requestId !== grantsRequestIdRef.current) {
           return;
         }
-        setFeedbackError(resolveErrorMessage(error, '加载授权记录失败。'));
+        setFeedbackError(resolveErrorMessage(error, 'Could not load grants.'));
       } finally {
         if (requestId === grantsRequestIdRef.current) {
           setGrantsLoading(false);
@@ -521,7 +529,7 @@ export default function Admin() {
         if (requestId !== accessRequestsRequestIdRef.current) {
           return;
         }
-        setFeedbackError(resolveErrorMessage(error, '加载接入申请失败。'));
+        setFeedbackError(resolveErrorMessage(error, 'Could not load access requests.'));
       } finally {
         if (requestId === accessRequestsRequestIdRef.current) {
           setAccessRequestsLoading(false);
@@ -659,7 +667,7 @@ export default function Admin() {
       setFeedbackSuccess(successMsg);
       setUsers((prev) => prev.map((u) => (u.id === userId ? updatedUser : u)));
     } catch (error) {
-      setFeedbackError(resolveErrorMessage(error, '更新用户失败。'));
+      setFeedbackError(resolveErrorMessage(error, 'Could not update user.'));
     } finally {
       setUserUpdatingId('');
     }
@@ -681,7 +689,7 @@ export default function Admin() {
       setFeedbackSuccess(successMsg);
       setClients((prev) => prev.map((c) => (c.client_id === clientId ? updatedClient : c)));
     } catch (error) {
-      setFeedbackError(resolveErrorMessage(error, '更新应用失败。'));
+      setFeedbackError(resolveErrorMessage(error, 'Could not update client.'));
     } finally {
       setClientUpdatingId('');
     }
@@ -746,13 +754,13 @@ export default function Admin() {
           token_endpoint_auth_method: normalizedForm.tokenEndpointAuthMethod,
         }),
       });
-      setFeedbackSuccess(`客户端创建成功：${result.client_id}`);
+      setFeedbackSuccess(`Client created: ${result.client_id}`);
       if (result.client_secret) {
         setCreatedClientSecret(result.client_secret);
       }
       await loadClients(1);
     } catch (error) {
-      setFeedbackError(resolveErrorMessage(error, '创建客户端失败。'));
+      setFeedbackError(resolveErrorMessage(error, 'Could not create client.'));
     } finally {
       setCreatingClient(false);
     }
@@ -763,7 +771,7 @@ export default function Admin() {
     clearFeedback();
 
     if (!editClientId || !editClientForm) {
-      setFeedbackError('未找到要编辑的客户端。');
+      setFeedbackError('Could not find the client to edit.');
       return;
     }
 
@@ -788,11 +796,11 @@ export default function Admin() {
           is_active: normalizedForm.isActive,
         }),
       });
-      setFeedbackSuccess('客户端已更新。');
+      setFeedbackSuccess('Client updated.');
       setClients((prev) => prev.map((c) => (c.client_id === editClientId ? updatedClient : c)));
       setShowEditClientModal(false);
     } catch (error) {
-      setFeedbackError(resolveErrorMessage(error, '更新客户端失败。'));
+      setFeedbackError(resolveErrorMessage(error, 'Could not update client.'));
     } finally {
       setSavingClientEdit(false);
     }
@@ -802,7 +810,7 @@ export default function Admin() {
     event.preventDefault();
     clearFeedback();
     if (!selectedAccessRequest || !approveRequestForm) {
-      setFeedbackError('未找到要审批的申请。');
+      setFeedbackError('Could not find the request to approve.');
       return;
     }
 
@@ -833,7 +841,7 @@ export default function Admin() {
         }
       );
       setFeedbackSuccess(
-        '申请已通过，客户端信息已通过一次性阅后即焚链接发送至申请人邮箱。'
+        'Request approved. Client details were sent to the requester through a one-time read link.'
       );
       setShowApproveRequestModal(false);
       
@@ -842,7 +850,7 @@ export default function Admin() {
       // Still need to load new clients to show the newly generated app
       await loadClients(1);
     } catch (error) {
-      setFeedbackError(resolveErrorMessage(error, '审批申请失败。'));
+      setFeedbackError(resolveErrorMessage(error, 'Could not approve request.'));
     } finally {
       setApprovingRequest(false);
     }
@@ -852,12 +860,12 @@ export default function Admin() {
     event.preventDefault();
     clearFeedback();
     if (!selectedAccessRequest) {
-      setFeedbackError('未找到要拒绝的申请。');
+      setFeedbackError('Could not find the request to reject.');
       return;
     }
     const note = rejectRequestAdminNote.trim();
     if (!note) {
-      setFeedbackError('请填写拒绝原因。');
+      setFeedbackError('Enter a rejection reason.');
       return;
     }
 
@@ -871,11 +879,11 @@ export default function Admin() {
           body: JSON.stringify({ admin_note: note }),
         }
       );
-      setFeedbackSuccess('申请已拒绝，拒绝原因已发送至申请人邮箱。');
+      setFeedbackSuccess('Request rejected. The reason was emailed to the requester.');
       setShowRejectRequestModal(false);
       setAccessRequests((prev) => prev.map((r) => (r.id === selectedAccessRequest.id ? updatedRequest : r)));
     } catch (error) {
-      setFeedbackError(resolveErrorMessage(error, '拒绝申请失败。'));
+      setFeedbackError(resolveErrorMessage(error, 'Could not reject request.'));
     } finally {
       setRejectingRequest(false);
     }
@@ -895,18 +903,18 @@ export default function Admin() {
         }),
       });
       setFeedbackSuccess(
-        `撤销完成：${result.revoked_refresh_tokens} 个 refresh token，${result.removed_grants} 条授权记录。`
+        `Revoked: ${result.revoked_refresh_tokens} refresh tokens, ${result.removed_grants} grant records.`
       );
       await loadGrants(grantsPage);
     } catch (error) {
-      setFeedbackError(resolveErrorMessage(error, '撤销授权失败。'));
+      setFeedbackError(resolveErrorMessage(error, 'Could not revoke grant.'));
     } finally {
       setRevokingGrantKey('');
     }
   };
 
   if (loading || (!user && !sessionChecked)) {
-    return <div className="container admin-loading">正在验证管理员登录状态...</div>;
+    return <div className="container admin-loading">Checking admin session...</div>;
   }
 
   if (!user) {
@@ -918,10 +926,10 @@ export default function Admin() {
       <div className="container admin-access-denied">
         <div className="glass admin-access-denied-card">
           <AlertTriangle size={20} />
-          <h1>无管理权限</h1>
-          <p>当前账号不是管理员，或管理员等级不足。</p>
+          <h1>No admin access</h1>
+          <p>This account is not an admin or does not have enough admin level.</p>
           <Link to="/" className="btn-secondary">
-            返回首页
+            Back home
           </Link>
         </div>
       </div>
@@ -931,23 +939,23 @@ export default function Admin() {
   return (
     <motion.div
       className="page-transition-wrap admin-page"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
     >
       <div className="admin-bg-grid" aria-hidden="true" />
 
       <div className="container admin-container">
-        <header className="admin-header glass">
+        <motion.header className="admin-header glass" layout>
           <div>
-            <h1>NazoAuth 管理后台</h1>
+            <h1>NazoAuth admin</h1>
             <p>
-              登录身份：{user.display_name || user.email}（{user.role} / level {user.admin_level}
+              Signed in as: {user.display_name || user.email}（{user.role} / level {user.admin_level}
               ）
             </p>
           </div>
-        </header>
+        </motion.header>
 
         <div className="admin-toast-container">
           <AnimatePresence>
@@ -978,67 +986,76 @@ export default function Admin() {
           </AnimatePresence>
         </div>
 
-        <nav className="admin-tabs">
-          <button
+        <motion.nav className="admin-tabs" layout>
+          <motion.button
+            layout
             type="button"
             className={activeTab === 'users' ? 'active' : ''}
             onClick={() => handleTabChange('users')}
+            whileTap={{ scale: 0.98 }}
           >
             <Users size={16} />
-            <span>用户</span>
-          </button>
-          <button
+            <span>Users</span>
+          </motion.button>
+          <motion.button
+            layout
             type="button"
             className={activeTab === 'clients' ? 'active' : ''}
             onClick={() => handleTabChange('clients')}
+            whileTap={{ scale: 0.98 }}
           >
             <AppWindow size={16} />
-            <span>应用</span>
-          </button>
-          <button
+            <span>Clients</span>
+          </motion.button>
+          <motion.button
+            layout
             type="button"
             className={activeTab === 'grants' ? 'active' : ''}
             onClick={() => handleTabChange('grants')}
+            whileTap={{ scale: 0.98 }}
           >
             <ShieldCheck size={16} />
-            <span>授权记录</span>
-          </button>
-          <button
+            <span>Grants</span>
+          </motion.button>
+          <motion.button
+            layout
             type="button"
             className={activeTab === 'access-requests' ? 'active' : ''}
             onClick={() => handleTabChange('access-requests')}
+            whileTap={{ scale: 0.98 }}
           >
             <FileClock size={16} />
-            <span>接入申请</span>
-          </button>
-        </nav>
+            <span>Access requests</span>
+          </motion.button>
+        </motion.nav>
 
         <AnimatePresence mode="wait">
           {activeTab === 'users' && (
             <motion.section
               key="tab-users"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.2 }}
+              variants={contentSwitchVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              layout
               className="admin-card glass"
             >
             <header className="admin-card-head">
               <h2>
                 <UserRoundCog size={18} />
-                <span>用户管理</span>
+                <span>User management</span>
               </h2>
               <div className="admin-query-row">
                 <input
                   value={usersQuery}
                   onChange={(event) => setUsersQuery(event.target.value)}
-                  placeholder="按邮箱或用户名搜索"
+                  placeholder="Search by email or user name"
                 />
                 <select
                   value={usersRoleFilter}
                   onChange={(event) => setUsersRoleFilter(event.target.value)}
                 >
-                  <option value="">全部角色</option>
+                  <option value="">All roles</option>
                   <option value="user">user</option>
                   <option value="admin">admin</option>
                 </select>
@@ -1046,9 +1063,9 @@ export default function Admin() {
                   value={usersActiveFilter}
                   onChange={(event) => setUsersActiveFilter(event.target.value)}
                 >
-                  <option value="">全部状态</option>
-                  <option value="true">启用</option>
-                  <option value="false">禁用</option>
+                  <option value="">All states</option>
+                  <option value="true">Enable</option>
+                  <option value="false">Disable</option>
                 </select>
                 <button
                   type="button"
@@ -1057,21 +1074,33 @@ export default function Admin() {
                   onClick={() => void loadUsers(1)}
                 >
                   <Search size={14} />
-                  <span>查询</span>
+                  <span>Search</span>
                 </button>
               </div>
             </header>
 
             {usersLoading ? (
-              <div className="admin-placeholder">正在加载用户列表...</div>
+              <div className="admin-placeholder">Loading users...</div>
             ) : users.length === 0 ? (
-              <div className="admin-placeholder">暂无用户数据。</div>
+              <div className="admin-placeholder">No users found.</div>
             ) : (
-              <ul className="admin-list">
+              <motion.ul
+                className="admin-list"
+                variants={revealContainerVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                layout
+              >
                 {users.map((item) => {
                   const busy = userUpdatingId === item.id;
                   return (
-                    <li key={item.id} className="admin-list-item">
+                    <motion.li
+                      key={item.id}
+                      className="admin-list-item"
+                      variants={revealItemVariants}
+                      layout
+                    >
                       <div className="admin-list-main">
                         <strong>{item.display_name || item.email}</strong>
                         <p>{item.email}</p>
@@ -1079,7 +1108,7 @@ export default function Admin() {
                           role={item.role} / level={item.admin_level} /{' '}
                           {item.is_active ? 'active' : 'inactive'}
                         </p>
-                        <p>创建时间：{formatDateTime(item.created_at)}</p>
+                        <p>Created: {formatDateTime(item.created_at)}</p>
                       </div>
                       <div className="admin-list-actions">
                         <button
@@ -1090,11 +1119,11 @@ export default function Admin() {
                             void updateUser(
                               item.id,
                               { is_active: !item.is_active },
-                              item.is_active ? '用户已禁用。' : '用户已启用。'
+                              item.is_active ? 'User disabled.' : 'User enabled.'
                             )
                           }
                         >
-                          {item.is_active ? '禁用' : '启用'}
+                          {item.is_active ? 'Disable' : 'Enable'}
                         </button>
                         <button
                           type="button"
@@ -1107,11 +1136,11 @@ export default function Admin() {
                                 role: item.role === 'admin' ? 'user' : 'admin',
                                 admin_level: item.role === 'admin' ? 0 : 1,
                               },
-                              item.role === 'admin' ? '已降级为普通用户。' : '已提升为管理员。'
+                              item.role === 'admin' ? 'User demoted to standard user.' : 'User promoted to admin.'
                             )
                           }
                         >
-                          {item.role === 'admin' ? '降级' : '提升'}
+                          {item.role === 'admin' ? 'Demote' : 'Promote'}
                         </button>
                         <button
                           type="button"
@@ -1121,22 +1150,22 @@ export default function Admin() {
                             void updateUser(
                               item.id,
                               { admin_level: item.admin_level + 1 },
-                              '管理员等级已提升。'
+                              'Admin level increased.'
                             )
                           }
                         >
-                          等级+1
+                          Level +1
                         </button>
                       </div>
-                    </li>
+                    </motion.li>
                   );
                 })}
-              </ul>
+              </motion.ul>
             )}
 
             <footer className="admin-pagination">
               <span>
-                第 {usersPage}/{usersTotalPages} 页 · 共 {usersTotal} 条
+                Page {usersPage}/{usersTotalPages} of {usersTotal} items
               </span>
               <div>
                 <button
@@ -1145,7 +1174,7 @@ export default function Admin() {
                   disabled={usersPage <= 1 || usersLoading}
                   onClick={() => void loadUsers(usersPage - 1)}
                 >
-                  上一页
+                  Previous
                 </button>
                 <button
                   type="button"
@@ -1153,7 +1182,7 @@ export default function Admin() {
                   disabled={usersPage >= usersTotalPages || usersLoading}
                   onClick={() => void loadUsers(usersPage + 1)}
                 >
-                  下一页
+                  Next
                 </button>
               </div>
             </footer>
@@ -1163,30 +1192,31 @@ export default function Admin() {
           {activeTab === 'clients' && (
             <motion.section
               key="tab-clients"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.2 }}
+              variants={contentSwitchVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              layout
               className="admin-card glass"
             >
             <header className="admin-card-head">
               <h2>
                 <AppWindow size={18} />
-                <span>应用管理</span>
+                <span>Client management</span>
               </h2>
               <div className="admin-query-row">
                 <input
                   value={clientsQuery}
                   onChange={(event) => setClientsQuery(event.target.value)}
-                  placeholder="按 client_id 或应用名称搜索"
+                  placeholder="Search by client_id or client name"
                 />
                 <select
                   value={clientsActiveFilter}
                   onChange={(event) => setClientsActiveFilter(event.target.value)}
                 >
-                  <option value="">全部状态</option>
-                  <option value="true">启用</option>
-                  <option value="false">禁用</option>
+                  <option value="">All states</option>
+                  <option value="true">Enable</option>
+                  <option value="false">Disable</option>
                 </select>
                 <button
                   type="button"
@@ -1195,29 +1225,41 @@ export default function Admin() {
                   onClick={() => void loadClients(1)}
                 >
                   <Search size={14} />
-                  <span>查询</span>
+                  <span>Search</span>
                 </button>
                 <button type="button" className="btn-primary" onClick={openCreateClientModal}>
                   <Plus size={14} />
-                  <span>创建应用</span>
+                  <span>Create client</span>
                 </button>
               </div>
             </header>
 
             {createdClientSecret && (
               <div className="admin-inline-note">
-                最新生成的 `client_secret`：{createdClientSecret}
+                Latest generated `client_secret`: {createdClientSecret}
               </div>
             )}
 
             {clientsLoading ? (
-              <div className="admin-placeholder">正在加载应用列表...</div>
+              <div className="admin-placeholder">Loading clients...</div>
             ) : clients.length === 0 ? (
-              <div className="admin-placeholder">暂无应用数据。</div>
+              <div className="admin-placeholder">No clients found.</div>
             ) : (
-              <ul className="admin-list">
+              <motion.ul
+                className="admin-list"
+                variants={revealContainerVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                layout
+              >
                 {clients.map((item) => (
-                  <li key={item.client_id} className="admin-list-item">
+                  <motion.li
+                    key={item.client_id}
+                    className="admin-list-item"
+                    variants={revealItemVariants}
+                    layout
+                  >
                     <div className="admin-list-main">
                       <strong>{item.client_name}</strong>
                       <p>{item.client_id}</p>
@@ -1239,11 +1281,11 @@ export default function Admin() {
                           void updateClient(
                             item.client_id,
                             { is_active: !item.is_active },
-                            item.is_active ? '应用已禁用。' : '应用已启用。'
+                            item.is_active ? 'Client disabled.' : 'Client enabled.'
                           )
                         }
                       >
-                        {item.is_active ? '禁用' : '启用'}
+                        {item.is_active ? 'Disable' : 'Enable'}
                       </button>
                       <button
                         type="button"
@@ -1251,17 +1293,17 @@ export default function Admin() {
                         onClick={() => openEditClientModal(item)}
                       >
                         <PencilLine size={14} />
-                        <span>编辑</span>
+                        <span>Edit</span>
                       </button>
                     </div>
-                  </li>
+                  </motion.li>
                 ))}
-              </ul>
+              </motion.ul>
             )}
 
             <footer className="admin-pagination">
               <span>
-                第 {clientsPage}/{clientsTotalPages} 页 · 共 {clientsTotal} 条
+                Page {clientsPage}/{clientsTotalPages} of {clientsTotal} items
               </span>
               <div>
                 <button
@@ -1270,7 +1312,7 @@ export default function Admin() {
                   disabled={clientsPage <= 1 || clientsLoading}
                   onClick={() => void loadClients(clientsPage - 1)}
                 >
-                  上一页
+                  Previous
                 </button>
                 <button
                   type="button"
@@ -1278,7 +1320,7 @@ export default function Admin() {
                   disabled={clientsPage >= clientsTotalPages || clientsLoading}
                   onClick={() => void loadClients(clientsPage + 1)}
                 >
-                  下一页
+                  Next
                 </button>
               </div>
             </footer>
@@ -1288,28 +1330,29 @@ export default function Admin() {
           {activeTab === 'access-requests' && (
             <motion.section
               key="tab-requests"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.2 }}
+              variants={contentSwitchVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              layout
               className="admin-card glass"
             >
             <header className="admin-card-head">
               <h2>
                 <FileClock size={18} />
-                <span>接入申请审批</span>
+                <span>Access request review</span>
               </h2>
               <div className="admin-query-row">
                 <input
                   value={accessRequestsQuery}
                   onChange={(event) => setAccessRequestsQuery(event.target.value)}
-                  placeholder="按邮箱/站点名/URL 搜索"
+                  placeholder="Search by email, site, or URL"
                 />
                 <select
                   value={accessRequestsStatusFilter}
                   onChange={(event) => setAccessRequestsStatusFilter(event.target.value)}
                 >
-                  <option value="">全部状态</option>
+                  <option value="">All states</option>
                   <option value={ClientAccessRequestStatus.Pending}>pending</option>
                   <option value={ClientAccessRequestStatus.Approved}>approved</option>
                   <option value={ClientAccessRequestStatus.Rejected}>rejected</option>
@@ -1321,23 +1364,35 @@ export default function Admin() {
                   onClick={() => void loadAccessRequests(1)}
                 >
                   <Search size={14} />
-                  <span>查询</span>
+                  <span>Search</span>
                 </button>
               </div>
             </header>
 
             {accessRequestsLoading ? (
-              <div className="admin-placeholder">正在加载接入申请...</div>
+              <div className="admin-placeholder">Loading access requests...</div>
             ) : accessRequests.length === 0 ? (
-              <div className="admin-placeholder">暂无接入申请数据。</div>
+              <div className="admin-placeholder">No access requests found.</div>
             ) : (
-              <ul className="admin-list">
+              <motion.ul
+                className="admin-list"
+                variants={revealContainerVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                layout
+              >
                 {accessRequests.map((item) => (
-                  <li key={item.id} className="admin-list-item">
+                  <motion.li
+                    key={item.id}
+                    className="admin-list-item"
+                    variants={revealItemVariants}
+                    layout
+                  >
                     <div className="admin-list-main">
                       <strong>{item.site_name}</strong>
                       <p>
-                        user: {item.user_email} · status:{' '}
+                        user: {item.user_email} - status:{' '}
                         <span
                           className={`admin-status-tag ${clientAccessRequestStatusMeta[item.status].className}`}
                         >
@@ -1345,10 +1400,10 @@ export default function Admin() {
                         </span>
                       </p>
                       <p>url: {item.site_url}</p>
-                      <p>描述: {item.request_description}</p>
-                      <p>提交时间: {formatDateTime(item.created_at)}</p>
-                      {item.resolved_at && <p>处理时间: {formatDateTime(item.resolved_at)}</p>}
-                      {item.admin_note && <p>处理备注: {item.admin_note}</p>}
+                      <p>Description: {item.request_description}</p>
+                      <p>Submitted: {formatDateTime(item.created_at)}</p>
+                      {item.resolved_at && <p>Resolved: {formatDateTime(item.resolved_at)}</p>}
+                      {item.admin_note && <p>Admin note: {item.admin_note}</p>}
                     </div>
                     <div className="admin-list-actions">
                       {item.status === ClientAccessRequestStatus.Pending ? (
@@ -1359,7 +1414,7 @@ export default function Admin() {
                             onClick={() => openApproveRequestModal(item)}
                           >
                             <CheckCircle2 size={14} />
-                            <span>通过</span>
+                            <span>Approve</span>
                           </button>
                           <button
                             type="button"
@@ -1367,22 +1422,22 @@ export default function Admin() {
                             onClick={() => openRejectRequestModal(item)}
                           >
                             <XCircle size={14} />
-                            <span>拒绝</span>
+                            <span>Reject</span>
                           </button>
                         </>
                       ) : (
-                        <span className="admin-inline-note">已处理</span>
+                        <span className="admin-inline-note">Processed</span>
                       )}
                     </div>
-                  </li>
+                  </motion.li>
                 ))}
-              </ul>
+              </motion.ul>
             )}
 
             <footer className="admin-pagination">
               <span>
-                第 {accessRequestsPage}/{accessRequestsTotalPages} 页 · 共 {accessRequestsTotal}{' '}
-                条
+                Page {accessRequestsPage}/{accessRequestsTotalPages} of {accessRequestsTotal}{' '}
+                items
               </span>
               <div>
                 <button
@@ -1391,7 +1446,7 @@ export default function Admin() {
                   disabled={accessRequestsPage <= 1 || accessRequestsLoading}
                   onClick={() => void loadAccessRequests(accessRequestsPage - 1)}
                 >
-                  上一页
+                  Previous
                 </button>
                 <button
                   type="button"
@@ -1401,7 +1456,7 @@ export default function Admin() {
                   }
                   onClick={() => void loadAccessRequests(accessRequestsPage + 1)}
                 >
-                  下一页
+                  Next
                 </button>
               </div>
             </footer>
@@ -1411,22 +1466,23 @@ export default function Admin() {
           {activeTab === 'grants' && (
             <motion.section
               key="tab-grants"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.2 }}
+              variants={contentSwitchVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              layout
               className="admin-card glass"
             >
             <header className="admin-card-head">
               <h2>
                 <ShieldCheck size={18} />
-                <span>授权记录</span>
+                <span>Grants</span>
               </h2>
               <div className="admin-query-row">
                 <input
                   value={grantsQuery}
                   onChange={(event) => setGrantsQuery(event.target.value)}
-                  placeholder="按邮箱/client_id/应用名搜索"
+                  placeholder="Search by email, client_id, or client name"
                 />
                 <button
                   type="button"
@@ -1435,26 +1491,38 @@ export default function Admin() {
                   onClick={() => void loadGrants(1)}
                 >
                   <Search size={14} />
-                  <span>查询</span>
+                  <span>Search</span>
                 </button>
               </div>
             </header>
 
             {grantsLoading ? (
-              <div className="admin-placeholder">正在加载授权记录...</div>
+              <div className="admin-placeholder">Loading grants...</div>
             ) : grants.length === 0 ? (
-              <div className="admin-placeholder">暂无授权记录。</div>
+              <div className="admin-placeholder">No grants found.</div>
             ) : (
-              <ul className="admin-list">
+              <motion.ul
+                className="admin-list"
+                variants={revealContainerVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                layout
+              >
                 {grants.map((item) => {
                   const key = `${item.user_id}:${item.client_id}`;
                   return (
-                    <li key={key} className="admin-list-item">
+                    <motion.li
+                      key={key}
+                      className="admin-list-item"
+                      variants={revealItemVariants}
+                      layout
+                    >
                       <div className="admin-list-main">
                         <strong>{item.client_name}</strong>
                         <p>client: {item.client_id}</p>
                         <p>user: {item.email}</p>
-                        <p>最近授权：{formatDateTime(item.last_authorized_at)}</p>
+                        <p>Last authorized: {formatDateTime(item.last_authorized_at)}</p>
                         <p>scope: {item.last_scopes.join(' ') || '-'}</p>
                       </div>
                       <div className="admin-list-actions">
@@ -1465,18 +1533,18 @@ export default function Admin() {
                           onClick={() => void handleRevokeGrant(item)}
                         >
                           <Ban size={14} />
-                          <span>{revokingGrantKey === key ? '撤销中...' : '撤销授权'}</span>
+                          <span>{revokingGrantKey === key ? 'Revoking...' : 'Revoke grant'}</span>
                         </button>
                       </div>
-                    </li>
+                    </motion.li>
                   );
                 })}
-              </ul>
+              </motion.ul>
             )}
 
             <footer className="admin-pagination">
               <span>
-                第 {grantsPage}/{grantsTotalPages} 页 · 共 {grantsTotal} 条
+                Page {grantsPage}/{grantsTotalPages} of {grantsTotal} items
               </span>
               <div>
                 <button
@@ -1485,7 +1553,7 @@ export default function Admin() {
                   disabled={grantsPage <= 1 || grantsLoading}
                   onClick={() => void loadGrants(grantsPage - 1)}
                 >
-                  上一页
+                  Previous
                 </button>
                 <button
                   type="button"
@@ -1493,7 +1561,7 @@ export default function Admin() {
                   disabled={grantsPage >= grantsTotalPages || grantsLoading}
                   onClick={() => void loadGrants(grantsPage + 1)}
                 >
-                  下一页
+                  Next
                 </button>
               </div>
             </footer>
@@ -1506,10 +1574,10 @@ export default function Admin() {
         {showCreateClientModal && (
           <motion.div
             className="admin-modal-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            variants={modalOverlayVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
             role="presentation"
             onClick={(event) => {
               if (event.target === event.currentTarget && !creatingClient) {
@@ -1519,17 +1587,14 @@ export default function Admin() {
           >
             <motion.section
               className="glass admin-modal"
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              variants={modalPanelVariants}
               role="dialog"
               aria-modal="true"
             >
             <header className="admin-modal-head">
               <div>
-                <h2>创建应用</h2>
-                <p>使用标准化字段创建 OAuth 客户端。</p>
+                <h2>Create client</h2>
+                <p>Create an OAuth client using normalized fields.</p>
               </div>
               <button
                 type="button"
@@ -1543,18 +1608,18 @@ export default function Admin() {
 
             <form className="admin-form admin-modal-form" onSubmit={handleCreateClient}>
               <label>
-                应用名称
+                Client name
                 <input
                   value={createClientForm.clientName}
                   onChange={(event) =>
                     setCreateFormWithRules((prev) => ({ ...prev, clientName: event.target.value }))
                   }
-                  placeholder="例如：nazo-docs"
+                  placeholder="Example: nazo-docs"
                 />
               </label>
 
               <fieldset className="admin-fieldset">
-                <legend>客户端类型</legend>
+                <legend>Client type</legend>
                 <div className="admin-option-grid">
                   <label
                     className={`admin-option-item ${
@@ -1570,7 +1635,7 @@ export default function Admin() {
                       }
                     />
                     <span>public</span>
-                    <small>前端/浏览器应用</small>
+                    <small>Frontend/browser client</small>
                   </label>
                   <label
                     className={`admin-option-item ${
@@ -1589,7 +1654,7 @@ export default function Admin() {
                       }
                     />
                     <span>confidential</span>
-                    <small>服务端可安全保存密钥</small>
+                    <small>Server can store secrets safely</small>
                   </label>
                 </div>
               </fieldset>
@@ -1618,7 +1683,7 @@ export default function Admin() {
               </label>
 
               <fieldset className="admin-fieldset">
-                <legend>回调地址</legend>
+                <legend>Redirect URIs</legend>
                 <div className="admin-uri-list">
                   {createClientForm.redirectUris.map((uri, index) => (
                     <div key={`create-uri-${index}`} className="admin-uri-item">
@@ -1650,7 +1715,7 @@ export default function Admin() {
                         }
                         disabled={createClientForm.redirectUris.length <= 1}
                       >
-                        删除
+                        Remove
                       </button>
                     </div>
                   ))}
@@ -1667,13 +1732,13 @@ export default function Admin() {
                     }
                   >
                     <Plus size={14} />
-                    <span>添加回调地址</span>
+                    <span>Add redirect URI</span>
                   </button>
                 </div>
               </fieldset>
 
               <fieldset className="admin-fieldset">
-                <legend>Scopes {scopesLoading ? '（同步中）' : ''}</legend>
+                <legend>Scopes {scopesLoading ? ' (syncing)' : ''}</legend>
                 <div className="admin-option-grid compact">
                   {availableScopeOptions.map((scope) => (
                     <label
@@ -1732,7 +1797,7 @@ export default function Admin() {
                         }
                         disabled={createClientForm.allowedAudiences.length <= 1}
                       >
-                        删除
+                        Remove
                       </button>
                     </div>
                   ))}
@@ -1749,7 +1814,7 @@ export default function Admin() {
                     }
                   >
                     <Plus size={14} />
-                    <span>添加 audience</span>
+                    <span>Add audience</span>
                   </button>
                 </div>
               </fieldset>
@@ -1789,7 +1854,7 @@ export default function Admin() {
 
               {createdClientSecret && (
                 <div className="admin-inline-note">
-                  新创建客户端的 `client_secret`：{createdClientSecret}
+                  New client `client_secret`: {createdClientSecret}
                 </div>
               )}
 
@@ -1800,10 +1865,10 @@ export default function Admin() {
                   disabled={creatingClient}
                   onClick={() => setShowCreateClientModal(false)}
                 >
-                  关闭
+                  Close
                 </button>
                 <button type="submit" className="btn-primary" disabled={creatingClient}>
-                  {creatingClient ? '创建中...' : '创建应用'}
+                  {creatingClient ? 'Creating...' : 'Create client'}
                 </button>
               </footer>
             </form>
@@ -1815,10 +1880,10 @@ export default function Admin() {
         {showEditClientModal && editClientForm && (
           <motion.div
             className="admin-modal-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            variants={modalOverlayVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
             role="presentation"
             onClick={(event) => {
               if (event.target === event.currentTarget && !savingClientEdit) {
@@ -1828,16 +1893,13 @@ export default function Admin() {
           >
             <motion.section
               className="glass admin-modal"
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              variants={modalPanelVariants}
               role="dialog"
               aria-modal="true"
             >
             <header className="admin-modal-head">
               <div>
-                <h2>编辑应用</h2>
+                <h2>EditClients</h2>
                 <p>{editClientId}</p>
               </div>
               <button
@@ -1863,18 +1925,18 @@ export default function Admin() {
               </div>
 
               <label>
-                应用名称
+                Client name
                 <input
                   value={editClientForm.clientName}
                   onChange={(event) =>
                     setEditFormWithRules((prev) => ({ ...prev, clientName: event.target.value }))
                   }
-                  placeholder="应用名称"
+                  placeholder="Client name"
                 />
               </label>
 
               <label>
-                启用状态
+                Enabled state
                 <select
                   value={String(editClientForm.isActive)}
                   onChange={(event) =>
@@ -1884,13 +1946,13 @@ export default function Admin() {
                     }))
                   }
                 >
-                  <option value="true">启用</option>
-                  <option value="false">禁用</option>
+                  <option value="true">Enable</option>
+                  <option value="false">Disable</option>
                 </select>
               </label>
 
               <fieldset className="admin-fieldset">
-                <legend>回调地址</legend>
+                <legend>Redirect URIs</legend>
                 <div className="admin-uri-list">
                   {editClientForm.redirectUris.map((uri, index) => (
                     <div key={`edit-uri-${index}`} className="admin-uri-item">
@@ -1922,7 +1984,7 @@ export default function Admin() {
                         }
                         disabled={editClientForm.redirectUris.length <= 1}
                       >
-                        删除
+                        Remove
                       </button>
                     </div>
                   ))}
@@ -1939,7 +2001,7 @@ export default function Admin() {
                     }
                   >
                     <Plus size={14} />
-                    <span>添加回调地址</span>
+                    <span>Add redirect URI</span>
                   </button>
                 </div>
               </fieldset>
@@ -2004,7 +2066,7 @@ export default function Admin() {
                         }
                         disabled={editClientForm.allowedAudiences.length <= 1}
                       >
-                        删除
+                        Remove
                       </button>
                     </div>
                   ))}
@@ -2021,7 +2083,7 @@ export default function Admin() {
                     }
                   >
                     <Plus size={14} />
-                    <span>添加 audience</span>
+                    <span>Add audience</span>
                   </button>
                 </div>
               </fieldset>
@@ -2066,10 +2128,10 @@ export default function Admin() {
                   disabled={savingClientEdit}
                   onClick={() => setShowEditClientModal(false)}
                 >
-                  取消
+                  Cancel
                 </button>
                 <button type="submit" className="btn-primary" disabled={savingClientEdit}>
-                  {savingClientEdit ? '保存中...' : '保存修改'}
+                  {savingClientEdit ? 'Saving...' : 'Save changes'}
                 </button>
               </footer>
             </form>
@@ -2082,10 +2144,10 @@ export default function Admin() {
         {showApproveRequestModal && selectedAccessRequest && approveRequestForm && (
           <motion.div
             className="admin-modal-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            variants={modalOverlayVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
             role="presentation"
             onClick={(event) => {
               if (event.target === event.currentTarget && !approvingRequest) {
@@ -2095,16 +2157,13 @@ export default function Admin() {
           >
             <motion.section
               className="glass admin-modal"
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              variants={modalPanelVariants}
               role="dialog"
               aria-modal="true"
             >
             <header className="admin-modal-head">
               <div>
-                <h2>审批通过申请</h2>
+                <h2>Approve access request</h2>
                 <p>{selectedAccessRequest.user_email}</p>
               </div>
               <button
@@ -2120,17 +2179,17 @@ export default function Admin() {
             <form className="admin-form admin-modal-form" onSubmit={handleApproveAccessRequest}>
               <div className="admin-readonly-grid">
                 <div className="admin-readonly-row">
-                  <span>站点名</span>
+                  <span>Site name</span>
                   <strong>{selectedAccessRequest.site_name}</strong>
                 </div>
                 <div className="admin-readonly-row">
-                  <span>站点 URL</span>
+                  <span>Site URL</span>
                   <strong>{selectedAccessRequest.site_url}</strong>
                 </div>
               </div>
 
               <label>
-                应用名称
+                Client name
                 <input
                   value={approveRequestForm.clientName}
                   onChange={(event) =>
@@ -2139,12 +2198,12 @@ export default function Admin() {
                       clientName: event.target.value,
                     }))
                   }
-                  placeholder="审批后生成的客户端名称"
+                  placeholder="Client name created after approval"
                 />
               </label>
 
               <fieldset className="admin-fieldset">
-                <legend>客户端类型</legend>
+                <legend>Client type</legend>
                 <div className="admin-option-grid">
                   <label
                     className={`admin-option-item ${
@@ -2160,7 +2219,7 @@ export default function Admin() {
                       }
                     />
                     <span>public</span>
-                    <small>无 client_secret</small>
+                    <small>No client_secret</small>
                   </label>
                   <label
                     className={`admin-option-item ${
@@ -2179,7 +2238,7 @@ export default function Admin() {
                       }
                     />
                     <span>confidential</span>
-                    <small>将生成 client_secret</small>
+                    <small>Will generate client_secret</small>
                   </label>
                 </div>
               </fieldset>
@@ -2208,7 +2267,7 @@ export default function Admin() {
               </label>
 
               <fieldset className="admin-fieldset">
-                <legend>回调地址</legend>
+                <legend>Redirect URIs</legend>
                 <div className="admin-uri-list">
                   {approveRequestForm.redirectUris.map((uri, index) => (
                     <div key={`approve-uri-${index}`} className="admin-uri-item">
@@ -2240,7 +2299,7 @@ export default function Admin() {
                         }
                         disabled={approveRequestForm.redirectUris.length <= 1}
                       >
-                        删除
+                        Remove
                       </button>
                     </div>
                   ))}
@@ -2257,13 +2316,13 @@ export default function Admin() {
                     }
                   >
                     <Plus size={14} />
-                    <span>添加回调地址</span>
+                    <span>Add redirect URI</span>
                   </button>
                 </div>
               </fieldset>
 
               <fieldset className="admin-fieldset">
-                <legend>Scopes {scopesLoading ? '（同步中）' : ''}</legend>
+                <legend>Scopes {scopesLoading ? ' (syncing)' : ''}</legend>
                 <div className="admin-option-grid compact">
                   {availableScopeOptions.map((scope) => (
                     <label
@@ -2322,7 +2381,7 @@ export default function Admin() {
                         }
                         disabled={approveRequestForm.allowedAudiences.length <= 1}
                       >
-                        删除
+                        Remove
                       </button>
                     </div>
                   ))}
@@ -2339,7 +2398,7 @@ export default function Admin() {
                     }
                   >
                     <Plus size={14} />
-                    <span>添加 audience</span>
+                    <span>Add audience</span>
                   </button>
                 </div>
               </fieldset>
@@ -2378,12 +2437,12 @@ export default function Admin() {
               </fieldset>
 
               <label>
-                审批备注（可选）
+                Admin note (optional)
                 <textarea
                   value={approveRequestAdminNote}
                   onChange={(event) => setApproveRequestAdminNote(event.target.value)}
                   rows={3}
-                  placeholder="将随审批结果记录展示给申请人"
+                  placeholder="Shown to the requester with the approval result"
                 />
               </label>
 
@@ -2394,10 +2453,10 @@ export default function Admin() {
                   disabled={approvingRequest}
                   onClick={() => setShowApproveRequestModal(false)}
                 >
-                  取消
+                  Cancel
                 </button>
                 <button type="submit" className="btn-primary" disabled={approvingRequest}>
-                  {approvingRequest ? '处理中...' : '确认通过并发送邮件'}
+                  {approvingRequest ? 'Processing...' : 'Approve and send email'}
                 </button>
               </footer>
             </form>
@@ -2410,10 +2469,10 @@ export default function Admin() {
         {showRejectRequestModal && selectedAccessRequest && (
           <motion.div
             className="admin-modal-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            variants={modalOverlayVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
             role="presentation"
             onClick={(event) => {
               if (event.target === event.currentTarget && !rejectingRequest) {
@@ -2423,16 +2482,13 @@ export default function Admin() {
           >
             <motion.section
               className="glass admin-modal admin-modal-compact"
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              variants={modalPanelVariants}
               role="dialog"
               aria-modal="true"
             >
               <header className="admin-modal-head">
                 <div>
-                  <h2>拒绝接入申请</h2>
+                  <h2>RejectAccess requests</h2>
                   <p>{selectedAccessRequest.user_email}</p>
                 </div>
               <button
@@ -2447,19 +2503,19 @@ export default function Admin() {
 
             <form className="admin-form admin-modal-form" onSubmit={handleRejectAccessRequest}>
               <div className="admin-readonly-row">
-                <span>申请信息</span>
+                <span>Request details</span>
                 <strong>
-                  {selectedAccessRequest.site_name} · {selectedAccessRequest.site_url}
+                  {selectedAccessRequest.site_name} - {selectedAccessRequest.site_url}
                 </strong>
               </div>
               <label>
-                拒绝原因（将通过邮件发送给申请人）
+                Rejection reason (emailed to the requester)
                 <textarea
                   value={rejectRequestAdminNote}
                   onChange={(event) => setRejectRequestAdminNote(event.target.value)}
                   rows={4}
                   maxLength={1000}
-                  placeholder="例如：回调地址不符合规范，请提供 HTTPS 回调地址。"
+                  placeholder="Example: Redirect URI does not meet requirements. Provide an HTTPS callback URL."
                 />
               </label>
 
@@ -2470,10 +2526,10 @@ export default function Admin() {
                   disabled={rejectingRequest}
                   onClick={() => setShowRejectRequestModal(false)}
                 >
-                  取消
+                  Cancel
                 </button>
                 <button type="submit" className="btn-secondary danger" disabled={rejectingRequest}>
-                  {rejectingRequest ? '处理中...' : '确认拒绝并发送邮件'}
+                  {rejectingRequest ? 'Processing...' : 'Reject and send email'}
                 </button>
               </footer>
             </form>

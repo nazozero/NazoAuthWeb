@@ -4,33 +4,39 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield,
   Book,
+  LockKeyhole,
   MessageSquare,
   LogIn,
   LogOut,
   Settings2,
   Menu,
   X,
+  Languages,
 } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
+import { useI18n } from '../i18n';
 import { resolveAvatarUrl } from '../lib/avatar';
+import { publicAsset } from '../lib/publicAsset';
 import './Navbar.css';
 
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { locale, toggleLocale, t } = useI18n();
   const [openMenuAtRoute, setOpenMenuAtRoute] = useState('');
   const canAccessAdmin = user?.role === 'admin' && user.admin_level >= 1;
   const currentRouteKey = `${location.pathname}${location.search}${location.hash}`;
   const mobileMenuOpen = openMenuAtRoute === currentRouteKey;
 
   const links = [
-    { path: '/', label: '账户入口', icon: Shield },
-    { path: '/docs', label: '接入文档', icon: Book },
+    { path: '/', label: t('nav.home'), icon: Shield },
+    { path: '/security', label: t('nav.security'), icon: LockKeyhole },
+    { path: '/docs', label: t('nav.docs'), icon: Book },
     ...(canAccessAdmin
-      ? [{ path: '/admin', label: '管理后台', icon: Settings2 }]
+      ? [{ path: '/admin', label: t('nav.admin'), icon: Settings2 }]
       : []),
-    { path: '/contact', label: '支持', icon: MessageSquare },
+    { path: '/contact', label: t('nav.support'), icon: MessageSquare },
   ];
 
   const handleLogout = async () => {
@@ -46,9 +52,9 @@ export default function Navbar() {
       animate={{ opacity: 1 }}
     >
       <div className="navbar-container container">
-        <Link to="/" className="navbar-logo" aria-label="返回首页">
+        <Link to="/" className="navbar-logo" aria-label={t('nav.backHome')}>
           <div className="logo-glow"></div>
-          <img src="/icons/site-icon-64x64.png" alt="NazoAuth 图标" className="logo-icon" />
+          <img src={publicAsset('icons/site-icon-64x64.png')} alt="NazoAuth icon" className="logo-icon" />
           <span className="logo-text">NazoAuth</span>
         </Link>
 
@@ -78,17 +84,26 @@ export default function Navbar() {
         </nav>
 
         <div className="navbar-actions navbar-actions-desktop">
+          <button
+            type="button"
+            className="language-toggle"
+            onClick={toggleLocale}
+            aria-label={locale === 'zh-CN' ? 'Switch to English' : '切换到中文'}
+          >
+            <Languages size={16} />
+            <span>{locale === 'zh-CN' ? t('nav.switchToEnglish') : t('nav.switchToChinese')}</span>
+          </button>
           {user ? (
             <>
               <Link to="/profile" className="navbar-profile-entry">
                 <span className="navbar-avatar-wrap">
                   <img
                     src={resolveAvatarUrl(user.avatar_url)}
-                    alt="用户头像"
+                    alt="User avatar"
                     className="navbar-avatar"
                   />
                 </span>
-                <span className="navbar-profile-text">{user.display_name || '个人中心'}</span>
+                <span className="navbar-profile-text">{user.display_name || t('nav.profile')}</span>
               </Link>
               <button
                 type="button"
@@ -98,13 +113,13 @@ export default function Navbar() {
                 }}
               >
                 <LogOut size={16} />
-                <span>退出</span>
+                <span>{t('nav.signOut')}</span>
               </button>
             </>
           ) : (
             <Link to="/auth" className="btn-primary">
               <LogIn size={18} />
-              <span>登录</span>
+              <span>{t('nav.signIn')}</span>
             </Link>
           )}
         </div>
@@ -112,7 +127,7 @@ export default function Navbar() {
         <button
           type="button"
           className="navbar-mobile-toggle"
-          aria-label={mobileMenuOpen ? '关闭导航菜单' : '打开导航菜单'}
+          aria-label={mobileMenuOpen ? t('nav.closeMenu') : t('nav.openMenu')}
           aria-expanded={mobileMenuOpen}
           onClick={() =>
             setOpenMenuAtRoute((value) => (value === currentRouteKey ? '' : currentRouteKey))
@@ -152,6 +167,16 @@ export default function Navbar() {
             </nav>
 
             <div className="navbar-mobile-actions">
+              <button
+                type="button"
+                className="language-toggle mobile-language-toggle"
+                onClick={toggleLocale}
+              >
+                <Languages size={16} />
+                <span>
+                  {locale === 'zh-CN' ? t('nav.switchToEnglish') : t('nav.switchToChinese')}
+                </span>
+              </button>
               {user ? (
                 <>
                   <Link
@@ -162,11 +187,11 @@ export default function Navbar() {
                     <span className="navbar-avatar-wrap">
                       <img
                         src={resolveAvatarUrl(user.avatar_url)}
-                        alt="用户头像"
+                        alt="User avatar"
                         className="navbar-avatar"
                       />
                     </span>
-                    <span>{user.display_name || '个人中心'}</span>
+                    <span>{user.display_name || t('nav.profile')}</span>
                   </Link>
                   <button
                     type="button"
@@ -176,7 +201,7 @@ export default function Navbar() {
                     }}
                   >
                     <LogOut size={16} />
-                    <span>退出登录</span>
+                    <span>{t('nav.signOut')}</span>
                   </button>
                 </>
               ) : (
@@ -186,7 +211,7 @@ export default function Navbar() {
                   onClick={() => setOpenMenuAtRoute('')}
                 >
                   <LogIn size={17} />
-                  <span>登录</span>
+                  <span>{t('nav.signIn')}</span>
                 </Link>
               )}
             </div>

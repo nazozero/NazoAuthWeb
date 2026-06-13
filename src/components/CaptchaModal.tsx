@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
+import { AnimatePresence, motion } from 'framer-motion';
+import { alertVariants, modalOverlayVariants, modalPanelVariants } from '../lib/motion';
 import './CaptchaModal.css';
 
 interface CaptchaModalProps {
@@ -30,16 +32,25 @@ export default function CaptchaModal({
   };
 
   return (
-    <div className="captcha-modal-overlay" role="presentation" onClick={onClose}>
-      <div
+    <motion.div
+      className="captcha-modal-overlay"
+      variants={modalOverlayVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      role="presentation"
+      onClick={onClose}
+    >
+      <motion.div
         className="captcha-modal glass"
+        variants={modalPanelVariants}
         role="dialog"
         aria-modal="true"
-        aria-label="人机验证"
+        aria-label="Human verification"
         onClick={(event) => event.stopPropagation()}
       >
         <h3>{title}</h3>
-        <p>请手动完成人机验证后继续。</p>
+        <p>Complete the verification step to continue.</p>
 
         <div className="captcha-widget-wrap">
           <Turnstile
@@ -58,20 +69,32 @@ export default function CaptchaModal({
             }}
             onExpire={() => {
               setRunning(false);
-              setErrorMsg('验证码已过期，请重新执行验证。');
+              setErrorMsg('Verification expired. Start the check again.');
             }}
             onError={() => {
               setRunning(false);
-              setErrorMsg('验证码校验失败，请重试。');
+              setErrorMsg('Verification failed. Please try again.');
             }}
           />
         </div>
 
-        {errorMsg && <div className="captcha-modal-error">{errorMsg}</div>}
+        <AnimatePresence initial={false}>
+          {errorMsg && (
+            <motion.div
+              className="captcha-modal-error"
+              variants={alertVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            >
+              {errorMsg}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className="captcha-modal-actions">
           <button type="button" className="btn-secondary" onClick={onClose}>
-            取消
+            Cancel
           </button>
           <button
             type="button"
@@ -79,10 +102,10 @@ export default function CaptchaModal({
             onClick={handleStart}
             disabled={disabled || running}
           >
-            {running ? '验证中...' : actionLabel}
+            {running ? 'Verifying...' : actionLabel}
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

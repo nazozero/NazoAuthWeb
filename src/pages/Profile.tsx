@@ -22,6 +22,13 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { ApiError, apiFetch } from '../lib/api';
 import { resolveAvatarUrl } from '../lib/avatar';
+import {
+  alertVariants,
+  contentSwitchVariants,
+  pageVariants,
+  revealContainerVariants,
+  revealItemVariants,
+} from '../lib/motion';
 import type {
   AuthorizedApp,
   AuthorizedAppsResponse,
@@ -43,7 +50,7 @@ function formatDateTime(value: string): string {
   if (Number.isNaN(date.getTime())) {
     return value;
   }
-  return date.toLocaleString('zh-CN', { hour12: false });
+  return date.toLocaleString('en-US', { hour12: false });
 }
 
 function resolveErrorMessage(error: unknown, fallback: string): string {
@@ -138,7 +145,7 @@ export default function Profile() {
         navigate('/auth', { replace: true });
         return;
       }
-      setProfileErrorMsg(resolveErrorMessage(error, '读取授权应用失败'));
+      setProfileErrorMsg(resolveErrorMessage(error, 'Could not load authorized apps'));
     } finally {
       setLoadingApps(false);
     }
@@ -157,7 +164,7 @@ export default function Profile() {
         navigate('/auth', { replace: true });
         return;
       }
-      setRequestErrorMsg(resolveErrorMessage(error, '读取接入申请失败'));
+      setRequestErrorMsg(resolveErrorMessage(error, 'Could not load access requests'));
     } finally {
       setLoadingRequests(false);
     }
@@ -190,7 +197,7 @@ export default function Profile() {
         );
         setDeliveryResult(response);
       } catch (error) {
-        setDeliveryErrorMsg(resolveErrorMessage(error, '一次性凭据读取失败'));
+        setDeliveryErrorMsg(resolveErrorMessage(error, 'Could not read one-time credentials'));
       } finally {
         const nextParams = new URLSearchParams(location.search);
         nextParams.delete('delivery_token');
@@ -226,7 +233,7 @@ export default function Profile() {
       payload.display_name = normalizedDisplayName || null;
     }
     if (Object.keys(payload).length === 0 && !avatarFile) {
-      setProfileSuccessMsg('资料未变更。');
+      setProfileSuccessMsg('No profile changes.');
       return;
     }
 
@@ -253,14 +260,14 @@ export default function Profile() {
         }
       }
       setUser(latestUser);
-      setProfileSuccessMsg('资料已更新。');
+      setProfileSuccessMsg('Profile updated.');
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         await logout();
         navigate('/auth', { replace: true });
         return;
       }
-      setProfileErrorMsg(resolveErrorMessage(error, '更新资料失败'));
+      setProfileErrorMsg(resolveErrorMessage(error, 'Could not update profile'));
     } finally {
       setSavingProfile(false);
     }
@@ -282,14 +289,14 @@ export default function Profile() {
       if (avatarInputRef.current) {
         avatarInputRef.current.value = '';
       }
-      setProfileSuccessMsg('头像已恢复默认。');
+      setProfileSuccessMsg('Avatar reset to default.');
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         await logout();
         navigate('/auth', { replace: true });
         return;
       }
-      setProfileErrorMsg(resolveErrorMessage(error, '删除头像失败'));
+      setProfileErrorMsg(resolveErrorMessage(error, 'Could not remove avatar'));
     } finally {
       setSavingProfile(false);
     }
@@ -308,11 +315,11 @@ export default function Profile() {
     const normalizedDescription = requestDescription.trim();
 
     if (!normalizedName || !normalizedUrl || !normalizedDescription) {
-      setRequestErrorMsg('请完整填写站点名、URL 和申请描述。');
+      setRequestErrorMsg('Enter the site name, URL, and request description.');
       return;
     }
     if (pendingRequest) {
-      setRequestErrorMsg('已有待处理申请，请等待审批完成后再提交。');
+      setRequestErrorMsg('You already have a pending request. Wait for review before submitting another one.');
       return;
     }
 
@@ -327,7 +334,7 @@ export default function Profile() {
           request_description: normalizedDescription,
         }),
       });
-      setRequestSuccessMsg('申请已提交，等待管理员审批。');
+      setRequestSuccessMsg('Request submitted. Waiting for admin review.');
       setSiteName('');
       setSiteUrl('');
       setRequestDescription('');
@@ -338,7 +345,7 @@ export default function Profile() {
         navigate('/auth', { replace: true });
         return;
       }
-      setRequestErrorMsg(resolveErrorMessage(error, '提交申请失败'));
+      setRequestErrorMsg(resolveErrorMessage(error, 'Could not submit the request'));
     } finally {
       setSubmittingRequest(false);
     }
@@ -356,77 +363,84 @@ export default function Profile() {
   return (
     <motion.div
       className="page-transition-wrap profile-page"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.25 }}
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
     >
       <div className="container profile-container">
-        <section className="profile-overview glass">
-          <img src={avatarPreview} alt="用户头像" className="profile-avatar" />
+        <motion.section className="profile-overview glass" layout>
+          <img src={avatarPreview} alt="User avatar" className="profile-avatar" />
           <div className="profile-overview-main">
-            <h1>{user.display_name || '未设置昵称'}</h1>
+            <h1>{user.display_name || 'Unnamed account'}</h1>
             <p>{user.email}</p>
           </div>
           <div className="profile-stats">
-            <span>已授权应用</span>
+            <span>Authorized apps</span>
             <strong>{user.authorized_app_count}</strong>
           </div>
-        </section>
+        </motion.section>
 
-        <nav className="profile-tabs">
-          <button
+        <motion.nav className="profile-tabs" layout>
+          <motion.button
+            layout
             type="button"
             className={activeTab === 'profile' ? 'active' : ''}
             onClick={() => updateTab('profile')}
+            whileTap={{ scale: 0.98 }}
           >
             <UserRound size={16} />
-            <span>个人资料</span>
-          </button>
-          <button
+            <span>Profile</span>
+          </motion.button>
+          <motion.button
+            layout
             type="button"
             className={activeTab === 'apps' ? 'active' : ''}
             onClick={() => updateTab('apps')}
+            whileTap={{ scale: 0.98 }}
           >
             <AppWindow size={16} />
-            <span>授权应用</span>
-          </button>
-          <button
+            <span>Authorized apps</span>
+          </motion.button>
+          <motion.button
+            layout
             type="button"
             className={activeTab === 'access-requests' ? 'active' : ''}
             onClick={() => updateTab('access-requests')}
+            whileTap={{ scale: 0.98 }}
           >
             <FileClock size={16} />
-            <span>接入申请</span>
-          </button>
-        </nav>
+            <span>Access requests</span>
+          </motion.button>
+        </motion.nav>
 
         <AnimatePresence mode="wait">
           {activeTab === 'profile' && (
             <motion.section
               key="tab-profile"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.2 }}
+              variants={contentSwitchVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              layout
               className="profile-card glass"
             >
             <h2>
               <UserRound size={18} />
-              <span>个人资料</span>
+              <span>Profile</span>
             </h2>
             <form onSubmit={handleSaveProfile} className="profile-form">
-              <label htmlFor="display_name">昵称</label>
+              <label htmlFor="display_name">Display name</label>
               <input
                 id="display_name"
                 type="text"
                 value={displayName}
                 onChange={(event) => setDisplayName(event.target.value)}
                 maxLength={80}
-                placeholder="输入你的显示昵称"
+                placeholder="Enter your display name"
               />
 
-              <label htmlFor="avatar_file">上传头像</label>
+              <label htmlFor="avatar_file">Upload avatar</label>
               <input
                 ref={avatarInputRef}
                 id="avatar_file"
@@ -438,19 +452,39 @@ export default function Profile() {
                 }}
               />
               <p className="profile-form-hint">
-                仅支持 PNG / JPEG / WEBP，最大 2MB。
-                {avatarFile ? ` 已选择：${avatarFile.name}` : ''}
+                PNG, JPEG, or WEBP only, up to 2MB.
+                {avatarFile ? ` Selected: ${avatarFile.name}` : ''}
               </p>
 
-              {profileErrorMsg && <div className="profile-alert error">{profileErrorMsg}</div>}
-              {profileSuccessMsg && (
-                <div className="profile-alert success">{profileSuccessMsg}</div>
-              )}
+              <AnimatePresence initial={false}>
+                {profileErrorMsg && (
+                  <motion.div
+                    className="profile-alert error"
+                    variants={alertVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                  >
+                    {profileErrorMsg}
+                  </motion.div>
+                )}
+                {profileSuccessMsg && (
+                  <motion.div
+                    className="profile-alert success"
+                    variants={alertVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                  >
+                    {profileSuccessMsg}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               <div className="profile-form-actions">
                 <button type="submit" className="btn-primary" disabled={savingProfile}>
                   {avatarFile ? <Upload size={16} /> : <Save size={16} />}
-                  <span>{savingProfile ? '保存中...' : avatarFile ? '保存并上传头像' : '保存资料'}</span>
+                  <span>{savingProfile ? 'Saving...' : avatarFile ? 'Save and upload avatar' : 'Save profile'}</span>
                 </button>
                 <button
                   type="button"
@@ -461,11 +495,11 @@ export default function Profile() {
                   }}
                 >
                   <Trash2 size={16} />
-                  <span>恢复默认头像</span>
+                  <span>Reset avatar</span>
                 </button>
                 <button type="button" className="btn-secondary" onClick={handleLogout}>
                   <LogOut size={16} />
-                  <span>退出登录</span>
+                  <span>Sign out</span>
                 </button>
               </div>
             </form>
@@ -475,77 +509,133 @@ export default function Profile() {
           {activeTab === 'apps' && (
             <motion.section
               key="tab-apps"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.2 }}
+              variants={contentSwitchVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              layout
               className="profile-card glass"
             >
             <h2>
               <AppWindow size={18} />
-              <span>授权应用</span>
+              <span>Authorized apps</span>
             </h2>
 
-            {loadingApps ? (
-              <div className="profile-placeholder">正在加载授权应用...</div>
-            ) : apps.length === 0 ? (
-              <div className="profile-placeholder">暂无历史授权记录。</div>
-            ) : (
-              <ul className="authorized-list">
+            <AnimatePresence mode="wait" initial={false}>
+              {loadingApps ? (
+                <motion.div
+                  key="apps-loading"
+                  className="profile-placeholder"
+                  variants={contentSwitchVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                >
+                  Loading authorized apps...
+                </motion.div>
+              ) : apps.length === 0 ? (
+                <motion.div
+                  key="apps-empty"
+                  className="profile-placeholder"
+                  variants={contentSwitchVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                >
+                  No authorization history yet.
+                </motion.div>
+              ) : (
+              <motion.ul
+                key="apps-list"
+                className="authorized-list"
+                variants={revealContainerVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                layout
+              >
                 {apps.map((item) => (
-                  <li key={item.client_id}>
+                  <motion.li key={item.client_id} variants={revealItemVariants} layout>
                     <div className="authorized-item-top">
                       <strong>{item.client_name}</strong>
-                      <span>{item.authorization_count} 次</span>
+                      <span>{item.authorization_count} times</span>
                     </div>
                     <p>Client ID: {item.client_id}</p>
-                    <p>最近授权: {formatDateTime(item.last_authorized_at)}</p>
-                    <p>Scope: {item.last_scopes.join(' ') || '无'}</p>
-                  </li>
+                    <p>Last authorized: {formatDateTime(item.last_authorized_at)}</p>
+                    <p>Scope: {item.last_scopes.join(' ') || 'none'}</p>
+                  </motion.li>
                 ))}
-              </ul>
-            )}
+              </motion.ul>
+              )}
+            </AnimatePresence>
             </motion.section>
           )}
 
           {activeTab === 'access-requests' && (
             <motion.section
               key="tab-requests"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.2 }}
+              variants={contentSwitchVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              layout
               className="profile-grid"
             >
-            <article className="profile-card glass">
+            <motion.article className="profile-card glass" layout>
               <h2>
                 <PlusCircle size={18} />
-                <span>申请接入应用</span>
+                <span>Request application access</span>
               </h2>
 
-              {pendingRequest && (
-                <div className="profile-alert warning">
-                  你当前有 1 条待处理申请，请等待管理员处理后再提交。
-                </div>
-              )}
-              {requestErrorMsg && <div className="profile-alert error">{requestErrorMsg}</div>}
-              {requestSuccessMsg && (
-                <div className="profile-alert success">{requestSuccessMsg}</div>
-              )}
+              <AnimatePresence initial={false}>
+                {pendingRequest && (
+                  <motion.div
+                    className="profile-alert warning"
+                    variants={alertVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                  >
+                    You have one pending request. Wait for admin review before submitting another one.
+                  </motion.div>
+                )}
+                {requestErrorMsg && (
+                  <motion.div
+                    className="profile-alert error"
+                    variants={alertVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                  >
+                    {requestErrorMsg}
+                  </motion.div>
+                )}
+                {requestSuccessMsg && (
+                  <motion.div
+                    className="profile-alert success"
+                    variants={alertVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                  >
+                    {requestSuccessMsg}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               <form className="profile-form" onSubmit={handleSubmitAccessRequest}>
-                <label htmlFor="request_site_name">站点名</label>
+                <label htmlFor="request_site_name">Site name</label>
                 <input
                   id="request_site_name"
                   type="text"
                   value={siteName}
                   onChange={(event) => setSiteName(event.target.value)}
                   maxLength={120}
-                  placeholder="例如：Nazo Docs"
+                  placeholder="Example: Nazo Docs"
                   disabled={Boolean(pendingRequest)}
                 />
 
-                <label htmlFor="request_site_url">站点 URL</label>
+                <label htmlFor="request_site_url">Site URL</label>
                 <input
                   id="request_site_url"
                   type="url"
@@ -555,12 +645,12 @@ export default function Profile() {
                   disabled={Boolean(pendingRequest)}
                 />
 
-                <label htmlFor="request_description">申请描述</label>
+                <label htmlFor="request_description">Request description</label>
                 <textarea
                   id="request_description"
                   value={requestDescription}
                   onChange={(event) => setRequestDescription(event.target.value)}
-                  placeholder="说明用途、回调场景、预期 scope。"
+                  placeholder="Describe usage, callback flow, and expected scopes."
                   maxLength={2000}
                   rows={5}
                   disabled={Boolean(pendingRequest)}
@@ -573,24 +663,42 @@ export default function Profile() {
                     disabled={submittingRequest || Boolean(pendingRequest)}
                   >
                     <PlusCircle size={16} />
-                    <span>{submittingRequest ? '提交中...' : '提交申请'}</span>
+                    <span>{submittingRequest ? 'Submitting...' : 'Submit request'}</span>
                   </button>
                 </div>
               </form>
-            </article>
+            </motion.article>
 
-            <article className="profile-card glass">
+            <motion.article className="profile-card glass" layout>
               <h2>
                 <FileClock size={18} />
-                <span>申请记录</span>
+                <span>Request history</span>
               </h2>
 
-              {deliveryErrorMsg && <div className="profile-alert error">{deliveryErrorMsg}</div>}
-              {deliveryResult && (
-                <div className="delivery-card">
+              <AnimatePresence initial={false}>
+                {deliveryErrorMsg && (
+                  <motion.div
+                    className="profile-alert error"
+                    variants={alertVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                  >
+                    {deliveryErrorMsg}
+                  </motion.div>
+                )}
+                {deliveryResult && (
+                  <motion.div
+                    className="delivery-card"
+                    variants={contentSwitchVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    layout
+                  >
                   <div className="delivery-card-head">
                     <ShieldAlert size={16} />
-                    <strong>一次性凭据（已阅后即焚）</strong>
+                    <strong>One-time credentials (read once)</strong>
                   </div>
                   <p>{deliveryResult.read_once_notice}</p>
                   <p>Client ID: {deliveryResult.client_id}</p>
@@ -602,20 +710,48 @@ export default function Profile() {
                   <p>Grant Types: {deliveryResult.grant_types.join(' ') || '-'}</p>
                   <p>
                     Client Secret:{' '}
-                    {deliveryResult.client_secret ? deliveryResult.client_secret : '（public 客户端无密钥）'}
+                    {deliveryResult.client_secret ? deliveryResult.client_secret : 'No secret for public clients'}
                   </p>
-                  <p>链接失效时间: {formatDateTime(deliveryResult.expires_at)}</p>
-                </div>
-              )}
+                  <p>Link expires: {formatDateTime(deliveryResult.expires_at)}</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
+              <AnimatePresence mode="wait" initial={false}>
               {loadingRequests ? (
-                <div className="profile-placeholder">正在加载申请记录...</div>
+                <motion.div
+                  key="requests-loading"
+                  className="profile-placeholder"
+                  variants={contentSwitchVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                >
+                  Loading request history...
+                </motion.div>
               ) : requests.length === 0 ? (
-                <div className="profile-placeholder">暂无申请记录。</div>
+                <motion.div
+                  key="requests-empty"
+                  className="profile-placeholder"
+                  variants={contentSwitchVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                >
+                  No access requests yet.
+                </motion.div>
               ) : (
-                <ul className="request-list">
+                <motion.ul
+                  key="requests-list"
+                  className="request-list"
+                  variants={revealContainerVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  layout
+                >
                   {requests.map((item) => (
-                    <li key={item.id}>
+                    <motion.li key={item.id} variants={revealItemVariants} layout>
                       <div className="request-item-top">
                         <strong>{item.site_name}</strong>
                         <span
@@ -625,15 +761,16 @@ export default function Profile() {
                         </span>
                       </div>
                       <p>URL: {item.site_url}</p>
-                      <p>描述: {item.request_description}</p>
-                      <p>提交时间: {formatDateTime(item.created_at)}</p>
-                      {item.resolved_at && <p>处理时间: {formatDateTime(item.resolved_at)}</p>}
-                      {item.admin_note && <p>审批说明: {item.admin_note}</p>}
-                    </li>
+                      <p>Description: {item.request_description}</p>
+                      <p>Submitted: {formatDateTime(item.created_at)}</p>
+                      {item.resolved_at && <p>Resolved: {formatDateTime(item.resolved_at)}</p>}
+                      {item.admin_note && <p>Admin note: {item.admin_note}</p>}
+                    </motion.li>
                   ))}
-                </ul>
+                </motion.ul>
               )}
-            </article>
+              </AnimatePresence>
+            </motion.article>
             </motion.section>
           )}
         </AnimatePresence>
