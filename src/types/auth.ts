@@ -103,6 +103,23 @@ export interface DeviceVerificationView {
   request?: DeviceAuthorizationRequestView | null;
 }
 
+export interface CibaAuthorizationRequestView {
+  client_id: string;
+  client_name: string;
+  scopes: string[];
+  audiences: string[];
+  binding_message?: string | null;
+  interval_seconds: number;
+  issued_at: string;
+  expires_at: string;
+}
+
+export interface CibaVerificationView {
+  auth_req_id: string;
+  csrf_token?: string | null;
+  request?: CibaAuthorizationRequestView | null;
+}
+
 export interface AdminUserItem {
   id: string;
   email: string;

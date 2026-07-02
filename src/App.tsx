@@ -18,6 +18,7 @@ const Contact = lazy(() => import('./pages/Contact'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Consent = lazy(() => import('./pages/Consent'));
 const Device = lazy(() => import('./pages/Device'));
+const Ciba = lazy(() => import('./pages/Ciba'));
 const Admin = lazy(() => import('./pages/Admin'));
 const Delivery = lazy(() => import('./pages/Delivery'));
 
@@ -64,6 +65,14 @@ function MainRoutes() {
             }
           />
           <Route
+            path="/ciba/:authReqId"
+            element={
+              <RequireAuth>
+                <Ciba />
+              </RequireAuth>
+            }
+          />
+          <Route
             path="/profile"
             element={
               <RequireAuth>
@@ -93,6 +102,7 @@ function AppShell() {
   const isIsolatedPage =
     location.pathname === '/consent' ||
     location.pathname === '/device' ||
+    location.pathname.startsWith('/ciba/') ||
     location.pathname === '/delivery';
 
   return (
