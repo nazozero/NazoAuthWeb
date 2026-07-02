@@ -86,6 +86,23 @@ export interface ConsentView {
   csrf_token?: string | null;
 }
 
+export interface DeviceAuthorizationRequestView {
+  client_id: string;
+  client_name: string;
+  scopes: string[];
+  resource_indicators: string[];
+  authorization_details?: unknown;
+  interval_seconds: number;
+  issued_at: string;
+  expires_at: string;
+}
+
+export interface DeviceVerificationView {
+  user_code: string;
+  csrf_token?: string | null;
+  request?: DeviceAuthorizationRequestView | null;
+}
+
 export interface AdminUserItem {
   id: string;
   email: string;
