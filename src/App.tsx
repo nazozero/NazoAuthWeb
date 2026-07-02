@@ -17,6 +17,7 @@ const Docs = lazy(() => import('./pages/Docs'));
 const Contact = lazy(() => import('./pages/Contact'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Consent = lazy(() => import('./pages/Consent'));
+const Device = lazy(() => import('./pages/Device'));
 const Admin = lazy(() => import('./pages/Admin'));
 const Delivery = lazy(() => import('./pages/Delivery'));
 
@@ -55,6 +56,14 @@ function MainRoutes() {
           />
           <Route path="/consent" element={<Consent />} />
           <Route
+            path="/device"
+            element={
+              <RequireAuth>
+                <Device />
+              </RequireAuth>
+            }
+          />
+          <Route
             path="/profile"
             element={
               <RequireAuth>
@@ -82,7 +91,9 @@ function MainRoutes() {
 function AppShell() {
   const location = useLocation();
   const isIsolatedPage =
-    location.pathname === '/consent' || location.pathname === '/delivery';
+    location.pathname === '/consent' ||
+    location.pathname === '/device' ||
+    location.pathname === '/delivery';
 
   return (
     <div className="app-layout">
