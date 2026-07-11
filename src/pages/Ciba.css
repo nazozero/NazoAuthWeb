@@ -1,0 +1,211 @@
+.ciba-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 28px 16px;
+}
+
+.ciba-shell {
+  width: min(100%, 760px);
+  display: grid;
+  gap: 14px;
+}
+
+.ciba-card {
+  padding: 28px;
+  border-radius: var(--radius);
+  display: grid;
+  gap: 22px;
+}
+
+.ciba-head,
+.ciba-block-title,
+.ciba-alert,
+.ciba-actions {
+  display: flex;
+  align-items: center;
+}
+
+.ciba-head {
+  gap: 14px;
+}
+
+.ciba-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius);
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  background: rgba(116, 205, 255, 0.1);
+  border: 1px solid rgba(116, 205, 255, 0.22);
+}
+
+.ciba-head h1 {
+  font-size: 1.7rem;
+  line-height: 1.1;
+}
+
+.ciba-head p,
+.ciba-status,
+.ciba-powered,
+.ciba-client-grid span {
+  color: var(--muted);
+}
+
+.ciba-status {
+  min-height: 64px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+}
+
+.ciba-alert {
+  gap: 10px;
+  min-height: 54px;
+  padding: 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+}
+
+.ciba-alert.error {
+  color: var(--danger);
+  background: rgba(255, 123, 135, 0.08);
+  border-color: rgba(255, 123, 135, 0.24);
+}
+
+.ciba-alert.success {
+  color: var(--success);
+  background: rgba(129, 214, 155, 0.08);
+  border-color: rgba(129, 214, 155, 0.24);
+}
+
+.ciba-request {
+  display: grid;
+  gap: 14px;
+}
+
+.ciba-client-box,
+.ciba-message-box,
+.ciba-scope-box {
+  padding: 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: rgba(244, 241, 232, 0.035);
+}
+
+.ciba-block-title {
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--text);
+  font-weight: 760;
+}
+
+.ciba-block-title svg {
+  color: var(--accent);
+}
+
+.ciba-client-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ciba-client-grid div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.ciba-client-grid strong,
+.ciba-message-box p {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+
+.ciba-message-box p {
+  margin: 0;
+}
+
+.ciba-chip-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ciba-chip-list li {
+  max-width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  color: var(--text);
+  background: rgba(116, 205, 255, 0.08);
+  border: 1px solid rgba(116, 205, 255, 0.18);
+  overflow-wrap: anywhere;
+}
+
+.ciba-chip-list.resource li {
+  background: rgba(111, 215, 200, 0.08);
+  border-color: rgba(111, 215, 200, 0.18);
+}
+
+.ciba-actions {
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.ciba-btn {
+  min-height: 44px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  cursor: pointer;
+  font-weight: 760;
+}
+
+.ciba-btn.deny {
+  color: var(--danger);
+  background: rgba(255, 123, 135, 0.08);
+  border-color: rgba(255, 123, 135, 0.24);
+}
+
+.ciba-btn.approve {
+  color: #061018;
+  background: linear-gradient(180deg, #b8eaff, var(--accent));
+  border-color: rgba(116, 205, 255, 0.78);
+}
+
+.ciba-powered {
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 680px) {
+  .ciba-card {
+    padding: 22px;
+  }
+
+  .ciba-head {
+    align-items: flex-start;
+  }
+
+  .ciba-actions {
+    display: grid;
+  }
+
+  .ciba-client-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ciba-btn {
+    width: 100%;
+  }
+}
