@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "test": "npm run lint && npm run build",
+    "security:source": "node scripts/check-browser-security.mjs source",
+    "security:dist": "node scripts/check-browser-security.mjs dist",
+    "test": "npm run lint && npm run security:source && npm run build && npm run security:dist",
     "preview": "vite preview"
   },
   "dependencies": {
