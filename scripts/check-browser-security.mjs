@@ -28,11 +28,13 @@ const storagePolicies = new Map([
 const otherPersistencePattern = /\b(sessionStorage|indexedDB|caches\.open|navigator\.serviceWorker)\b/
 const localStoragePattern = /\b(?:window\.)?localStorage\b/g
 const localStorageCallPattern = /window\.localStorage\.(getItem|setItem|removeItem)\s*\(([^)]*)\)/g
-const privatePemPattern = /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/i
+const privatePemPattern = /-----BEGIN (?:(?:RSA|EC|OPENSSH|DSA) |ENCRYPTED )?PRIVATE KEY-----/i
 const jwtPattern = /\beyJ[A-Za-z0-9_-]{7,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/
 const bearerPattern = /\bBearer\s+[A-Za-z0-9._~-]{24,}\b/i
 const credentialAssignmentPattern = /["']?(?:access[_-]?token|refresh[_-]?token|id[_-]?token|client[_-]?secret|code[_-]?verifier|client[_-]?assertion)["']?\s*[:=]\s*["'][A-Za-z0-9._~-]{16,}["']/i
 const oidfPrivatePattern = /oidf[_-](?:private|client)[_-](?:key|secret)/i
+const oidfCredentialAssignmentPattern = /\b(?:oidf(?:Runner|Client)?(?:Token|Secret|Key)|OIDF_[A-Z0-9_]*(?:TOKEN|SECRET|PRIVATE_KEY))\s*[:=]\s*["'][^"'\s]{8,}["']/i
+const nazoCredentialMarkerPattern = /\bnazo_(?:test|fixture|prod)_(?:token|secret|private_key)_[A-Za-z0-9._~-]{16,}\b/i
 const privateJwkPattern = /[{[][^{}\[\]]{0,512}["']kty["']\s*:\s*["'](?:RSA|EC|OKP)["'][^{}\[\]]{0,512}["']d["']\s*:\s*["'][A-Za-z0-9_-]{16,}["'][^{}\[\]]{0,512}[}\]]|[{[][^{}\[\]]{0,512}["']d["']\s*:\s*["'][A-Za-z0-9_-]{16,}["'][^{}\[\]]{0,512}["']kty["']\s*:\s*["'](?:RSA|EC|OKP)["'][^{}\[\]]{0,512}[}\]]/i
 const sourceExtensions = new Set(['.ts', '.tsx', '.js', '.jsx'])
 
@@ -54,6 +56,8 @@ export function artifactFindings(text) {
   if (bearerPattern.test(text)) findings.push('bearer credential')
   if (credentialAssignmentPattern.test(text)) findings.push('OAuth credential assignment')
   if (oidfPrivatePattern.test(text)) findings.push('private OIDF credential')
+  if (oidfCredentialAssignmentPattern.test(text)) findings.push('OIDF credential assignment')
+  if (nazoCredentialMarkerPattern.test(text)) findings.push('Nazo credential marker')
   if (privateJwkPattern.test(text)) findings.push('private JWK')
   return findings
 }

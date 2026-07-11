@@ -44,6 +44,9 @@ test('artifact gate rejects credential-shaped build content', () => {
     `{"access_token":"${'b'.repeat(32)}"}`,
     `{"kty":"RSA","n":"${'c'.repeat(32)}","d":"${'d'.repeat(32)}"}`,
     '-----BEGIN PRIVATE KEY----- secret -----END PRIVATE KEY-----',
+    '-----BEGIN ENCRYPTED PRIVATE KEY----- secret -----END ENCRYPTED PRIVATE KEY-----',
+    `oidfRunnerToken="opaque-runner-token-${'e'.repeat(24)}"`,
+    `nazo_test_secret_${'f'.repeat(24)}`,
     jwt,
   ]
   for (const sample of samples) {

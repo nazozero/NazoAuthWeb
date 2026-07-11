@@ -38,8 +38,12 @@ keys, OIDF credentials, or PKCE verifiers in browser storage.
 
 The only approved durable browser values are the locale preference and a
 non-authoritative boolean session hint. The backend always verifies the real
-session. `npm test` enforces this boundary in both source and production build
-output.
+session. `npm test` enforces exact source-level persistence calls and scans the
+production build for high-confidence credential artifacts including private
+keys, JWTs, bearer values, OAuth/OIDF credential assignments, private JWKs, and
+test-secret markers. Static scanning cannot classify an arbitrary minified
+opaque string without a credential name or recognizable format; runtime
+authorization and secret isolation remain server-side controls.
 
 Third-party browser applications are separate OAuth public clients. They use
 NazoAuth `/authorize` and `/token` with Authorization Code, exact redirect URIs,
