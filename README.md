@@ -30,10 +30,11 @@ npm run test
 ## Browser Security Boundary
 
 NazoAuthWeb is a same-origin first-party session application. It uses secure
-server-managed cookies and CSRF-protected `/auth/*` requests. It does not act as
-an OAuth public SPA and does not store access tokens, refresh tokens, ID Tokens,
-client secrets, private keys, OIDF credentials, or PKCE verifiers in browser
-storage.
+server-managed cookies; unsafe authenticated `/auth/me/*` operations are
+CSRF-protected. Login and other unauthenticated `/auth/*` entry points use their
+own endpoint controls. NazoAuthWeb does not act as an OAuth public SPA and does
+not store access tokens, refresh tokens, ID Tokens, client secrets, private
+keys, OIDF credentials, or PKCE verifiers in browser storage.
 
 The only approved durable browser values are the locale preference and a
 non-authoritative boolean session hint. The backend always verifies the real

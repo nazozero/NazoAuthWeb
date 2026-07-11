@@ -5,13 +5,35 @@ import process from 'node:process'
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const sourceRoot = join(root, 'src')
-const allowedStorageFiles = new Map([
-  ['auth/sessionHint.ts', "const SESSION_HINT_KEY = 'nazo_oauth_session_hint';"],
-  ['i18n/I18nProvider.tsx', "const STORAGE_KEY = 'nazoauth.locale';"],
+const storagePolicies = new Map([
+  [
+    'auth/sessionHint.ts',
+    {
+      declaration: "const SESSION_HINT_KEY = 'nazo_oauth_session_hint';",
+      calls: new Set([
+        'getItem(SESSION_HINT_KEY)',
+        "setItem(SESSION_HINT_KEY,'1')",
+        'removeItem(SESSION_HINT_KEY)',
+      ]),
+    },
+  ],
+  [
+    'i18n/I18nProvider.tsx',
+    {
+      declaration: "const STORAGE_KEY = 'nazoauth.locale';",
+      calls: new Set(['getItem(STORAGE_KEY)', 'setItem(STORAGE_KEY,nextLocale)']),
+    },
+  ],
 ])
-const persistencePattern = /\b(localStorage|sessionStorage|indexedDB|caches\.open|navigator\.serviceWorker)\b/
-const sensitiveMaterialPattern = /access[_-]?token|refresh[_-]?token|id[_-]?token|client[_-]?secret|code[_-]?verifier|private[_-]?key|client[_-]?assertion/i
-const privateArtifactPattern = /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|oidf[_-](?:private|client)[_-](?:key|secret)|client_assertion\s*[:=]/i
+const otherPersistencePattern = /\b(sessionStorage|indexedDB|caches\.open|navigator\.serviceWorker)\b/
+const localStoragePattern = /\b(?:window\.)?localStorage\b/g
+const localStorageCallPattern = /window\.localStorage\.(getItem|setItem|removeItem)\s*\(([^)]*)\)/g
+const privatePemPattern = /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/i
+const jwtPattern = /\beyJ[A-Za-z0-9_-]{7,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/
+const bearerPattern = /\bBearer\s+[A-Za-z0-9._~-]{24,}\b/i
+const credentialAssignmentPattern = /["']?(?:access[_-]?token|refresh[_-]?token|id[_-]?token|client[_-]?secret|code[_-]?verifier|client[_-]?assertion)["']?\s*[:=]\s*["'][A-Za-z0-9._~-]{16,}["']/i
+const oidfPrivatePattern = /oidf[_-](?:private|client)[_-](?:key|secret)/i
+const privateJwkPattern = /[{[][^{}\[\]]{0,512}["']kty["']\s*:\s*["'](?:RSA|EC|OKP)["'][^{}\[\]]{0,512}["']d["']\s*:\s*["'][A-Za-z0-9_-]{16,}["'][^{}\[\]]{0,512}[}\]]|[{[][^{}\[\]]{0,512}["']d["']\s*:\s*["'][A-Za-z0-9_-]{16,}["'][^{}\[\]]{0,512}["']kty["']\s*:\s*["'](?:RSA|EC|OKP)["'][^{}\[\]]{0,512}[}\]]/i
 const sourceExtensions = new Set(['.ts', '.tsx', '.js', '.jsx'])
 
 async function filesBelow(directory) {
@@ -25,6 +47,45 @@ async function filesBelow(directory) {
   return nested.flat()
 }
 
+export function artifactFindings(text) {
+  const findings = []
+  if (privatePemPattern.test(text)) findings.push('private key PEM')
+  if (jwtPattern.test(text)) findings.push('JWT-shaped credential')
+  if (bearerPattern.test(text)) findings.push('bearer credential')
+  if (credentialAssignmentPattern.test(text)) findings.push('OAuth credential assignment')
+  if (oidfPrivatePattern.test(text)) findings.push('private OIDF credential')
+  if (privateJwkPattern.test(text)) findings.push('private JWK')
+  return findings
+}
+
+export function sourceFindings(name, text) {
+  const findings = artifactFindings(text).map((finding) => `${name}: ${finding} in source`)
+  if (otherPersistencePattern.test(text)) {
+    findings.push(`${name}: unapproved durable browser storage`)
+  }
+
+  const mentions = [...text.matchAll(localStoragePattern)].length
+  if (mentions === 0) return findings
+
+  const policy = storagePolicies.get(name)
+  if (!policy || !text.includes(policy.declaration)) {
+    findings.push(`${name}: unapproved durable browser storage`)
+    return findings
+  }
+
+  const calls = [...text.matchAll(localStorageCallPattern)]
+  if (calls.length !== mentions) {
+    findings.push(`${name}: unrecognized localStorage access`)
+  }
+  for (const [, method, argumentsText] of calls) {
+    const normalized = `${method}(${argumentsText.replace(/\s+/g, '')})`
+    if (!policy.calls.has(normalized)) {
+      findings.push(`${name}: unapproved storage call ${normalized}`)
+    }
+  }
+  return findings
+}
+
 async function checkSource() {
   const failures = []
   for (const path of await filesBelow(sourceRoot)) {
@@ -33,19 +94,7 @@ async function checkSource() {
     }
     const name = relative(sourceRoot, path).replaceAll('\\', '/')
     const text = await readFile(path, 'utf8')
-    if (privateArtifactPattern.test(text)) {
-      failures.push(`${name}: private credential pattern in source`)
-    }
-    if (!persistencePattern.test(text)) {
-      continue
-    }
-    const requiredDeclaration = allowedStorageFiles.get(name)
-    if (!requiredDeclaration || !text.includes(requiredDeclaration)) {
-      failures.push(`${name}: unapproved durable browser storage`)
-    }
-    if (sensitiveMaterialPattern.test(text)) {
-      failures.push(`${name}: sensitive OAuth material appears beside durable browser storage`)
-    }
+    failures.push(...sourceFindings(name, text))
   }
   return failures
 }
@@ -55,24 +104,31 @@ async function checkDist() {
   const failures = []
   for (const path of await filesBelow(distRoot)) {
     const text = await readFile(path, 'utf8').catch(() => '')
-    if (privateArtifactPattern.test(text)) {
-      failures.push(`${relative(distRoot, path)}: private credential pattern in build output`)
+    for (const finding of artifactFindings(text)) {
+      failures.push(`${relative(distRoot, path)}: ${finding} in build output`)
     }
   }
   return failures
 }
 
-const mode = process.argv[2]
-const failures =
-  mode === 'source'
-    ? await checkSource()
-    : mode === 'dist'
-      ? await checkDist()
-      : [`unknown mode: ${mode ?? '<missing>'}`]
+async function main() {
+  const mode = process.argv[2]
+  const failures =
+    mode === 'source'
+      ? await checkSource()
+      : mode === 'dist'
+        ? await checkDist()
+        : [`unknown mode: ${mode ?? '<missing>'}`]
 
-if (failures.length > 0) {
-  console.error(failures.join('\n'))
-  process.exit(1)
+  if (failures.length > 0) {
+    console.error(failures.join('\n'))
+    process.exitCode = 1
+    return
+  }
+
+  console.log(`browser security ${mode} check passed`)
 }
 
-console.log(`browser security ${mode} check passed`)
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  await main()
+}
