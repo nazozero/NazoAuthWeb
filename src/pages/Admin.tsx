@@ -841,7 +841,7 @@ export default function Admin() {
         }
       );
       setFeedbackSuccess(
-        'Request approved. Client details were sent to the requester through a one-time read link.'
+        'Request approved. The requester can now open the one-time credential link from their access-request history.'
       );
       setShowApproveRequestModal(false);
       

@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "test": "npm run lint && npm run build",
+    "test": "node --experimental-strip-types --test src/lib/accessDelivery.test.ts && npm run lint && npm run build",
     "preview": "vite preview"
   },
   "dependencies": {
