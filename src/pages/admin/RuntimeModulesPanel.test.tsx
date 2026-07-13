@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiFetch } from '../../lib/api';
 import { ApiError } from '../../lib/api';
 import RuntimeModulesPanel from './RuntimeModulesPanel';
+import { mfaStepUpFailureMessage } from './runtimeModuleView';
 
 vi.mock('../../lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/api')>();
@@ -75,39 +76,64 @@ describe('RuntimeModulesPanel', () => {
         '/admin/runtime-modules/ciba',
         expect.objectContaining({
           method: 'PATCH',
+          expectedStatus: 202,
           body: JSON.stringify({
             desired_state: 'inherit',
             expected_revision: 7,
             reason: 'Return CIBA to deployment configuration',
-            cascade: false,
           }),
         })
       );
     });
-    expect(screen.getAllByText(/change accepted\/pending at revision 8/i)).not.toHaveLength(0);
+    expect(screen.getAllByText(/HTTP 202 Accepted.*transition pending at revision 8/i)).not.toHaveLength(0);
+    expect(screen.getByText('Enabled')).toBeInTheDocument();
     expect(screen.queryByText(/change completed/i)).not.toBeInTheDocument();
   });
 
-  it('requires a second dependency confirmation before a cascade mutation', async () => {
-    const user = userEvent.setup();
+  it('shows explicit cross-domain ownership and transition revision', async () => {
     render(<RuntimeModulesPanel />);
 
     await screen.findByRole('heading', { name: /Client Initiated Backchannel Authentication/i });
-    await user.selectOptions(screen.getByLabelText('Desired mode for ciba'), 'disabled');
-    await user.type(screen.getByLabelText('Reason for ciba'), 'Disable CIBA and its dependents');
-    await user.click(screen.getByLabelText('Cascade dependency changes for ciba'));
-    await user.click(screen.getByRole('button', { name: 'Review ciba change' }));
-    await user.click(screen.getByRole('button', { name: 'Confirm ciba change' }));
+    expect(screen.getByText('OAuth and OIDC extensions')).toBeInTheDocument();
+    expect(screen.getByText('Transition revision').parentElement).toHaveTextContent('7');
+    expect(screen.queryByLabelText(/Cascade dependency changes/i)).not.toBeInTheDocument();
+  });
 
-    expect(
-      mockedApiFetch.mock.calls.filter(([, init]) => init?.method === 'PATCH')
-    ).toHaveLength(0);
-    await user.click(screen.getByRole('button', { name: 'Confirm cascade impact' }));
-    await waitFor(() => {
-      expect(
-        mockedApiFetch.mock.calls.filter(([, init]) => init?.method === 'PATCH')
-      ).toHaveLength(1);
+  it('shows stale audit events with actor, instance, state, outcome, and timestamp evidence', async () => {
+    mockedApiFetch.mockImplementation(async (path, init) => {
+      if (path === '/admin/runtime-modules' && !init?.method) {
+        return moduleList;
+      }
+      if (path.startsWith('/admin/runtime-modules/events')) {
+        return {
+          total: 1,
+          page: 1,
+          page_size: 20,
+          items: [
+            {
+              event_id: 'event-8',
+              module_id: 'ciba',
+              event_type: 'stale_transition_discarded',
+              instance_id: 'server-a',
+              actor_id: 'admin-1',
+              reason: 'superseded by revision 9',
+              before_state: 'draining',
+              after_state: null,
+              revision: 8,
+              outcome_code: 'revision_changed',
+              created_at: '2026-07-13T08:01:00Z',
+            },
+          ],
+        };
+      }
+      throw new Error(`unexpected request: ${path}`);
     });
+
+    render(<RuntimeModulesPanel />);
+
+    expect(await screen.findByText('Stale transition discarded')).toBeInTheDocument();
+    expect(screen.getByText(/Actor: admin-1.*Instance: server-a.*draining.*revision_changed/)).toBeInTheDocument();
+    expect(screen.getByText(/Reason: superseded by revision 9/)).toBeInTheDocument();
   });
 
   it('performs MFA step-up without replaying the rejected mutation', async () => {
@@ -145,5 +171,16 @@ describe('RuntimeModulesPanel', () => {
       mockedApiFetch.mock.calls.filter(([, init]) => init?.method === 'PATCH')
     ).toHaveLength(1);
     expect(screen.queryByDisplayValue('123456')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    [401, 'session expired'],
+    [404, 'not available on this server version'],
+    [409, 'changed concurrently'],
+    [429, 'Too many MFA attempts'],
+  ])('maps MFA step-up HTTP %s to an actionable non-replay message', (status, message) => {
+    expect(mfaStepUpFailureMessage(new ApiError('Request failed', status, null))).toMatch(
+      new RegExp(message, 'i')
+    );
   });
 });

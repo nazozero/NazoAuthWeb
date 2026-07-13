@@ -8,11 +8,17 @@ import type {
   RuntimeModuleListResponse,
   RuntimeModuleStatus,
 } from './runtimeModuleTypes';
+import {
+  actualStateLabel,
+  eventTypeLabel,
+  mergeRuntimeModuleStatuses,
+  mfaStepUpFailureMessage,
+  moduleDomain,
+} from './runtimeModuleView';
 
 type ModuleDraft = {
   desiredState: RuntimeDesiredMode;
   reason: string;
-  cascade: boolean;
 };
 
 type PendingChange = AcceptedRuntimeModuleChange;
@@ -21,7 +27,7 @@ const DESIRED_MODES: RuntimeDesiredMode[] = ['inherit', 'enabled', 'disabled'];
 const POLL_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 10_000] as const;
 
 function initialDraft(module: RuntimeModuleStatus): ModuleDraft {
-  return { desiredState: module.desired_state, reason: '', cascade: false };
+  return { desiredState: module.desired_state, reason: '' };
 }
 
 function actionForMode(mode: RuntimeDesiredMode): string {
@@ -37,6 +43,9 @@ function formatTimestamp(value: string | null): string {
 }
 
 function isStable(module: RuntimeModuleStatus, acceptedRevision: number): boolean {
+  if (module.actual_state === 'failed') {
+    return (module.transition_revision ?? -1) >= acceptedRevision;
+  }
   return (
     module.actual_state !== 'starting' &&
     module.actual_state !== 'draining' &&
@@ -63,7 +72,6 @@ export default function RuntimeModulesPanel() {
   const [events, setEvents] = useState<RuntimeModuleEvent[]>([]);
   const [drafts, setDrafts] = useState<Record<string, ModuleDraft>>({});
   const [reviewing, setReviewing] = useState<RuntimeModuleStatus | null>(null);
-  const [cascadeConfirmed, setCascadeConfirmed] = useState(false);
   const [pending, setPending] = useState<Record<string, PendingChange>>({});
   const [loading, setLoading] = useState(true);
   const [savingModule, setSavingModule] = useState('');
@@ -74,10 +82,17 @@ export default function RuntimeModulesPanel() {
   const [verifyingMfa, setVerifyingMfa] = useState(false);
   const [pageVisible, setPageVisible] = useState(() => !document.hidden);
   const pollAttemptRef = useRef(0);
+  const moduleRequestRef = useRef(0);
+  const appliedModuleRequestRef = useRef(0);
 
   const loadModules = useCallback(async () => {
+    const requestId = ++moduleRequestRef.current;
     const response = await apiFetch<RuntimeModuleListResponse>('/admin/runtime-modules');
-    setModules(response.items);
+    if (requestId < appliedModuleRequestRef.current) {
+      return response.items;
+    }
+    appliedModuleRequestRef.current = requestId;
+    setModules((current) => mergeRuntimeModuleStatuses(current, response.items));
     setDrafts((current) => {
       const next = { ...current };
       for (const module of response.items) {
@@ -173,18 +188,27 @@ export default function RuntimeModulesPanel() {
             desired_state: draft.desiredState,
             expected_revision: module.revision,
             reason: draft.reason.trim(),
-            cascade: draft.cascade,
           }),
+          expectedStatus: 202,
         }
       );
       setPending((current) => ({ ...current, [module.module_id]: accepted }));
-      setNotice(`${module.module_id} change accepted/pending at revision ${accepted.revision}.`);
+      setNotice(
+        `${module.module_id}: HTTP 202 Accepted; transition pending at revision ${accepted.revision}.`
+      );
       setReviewing(null);
       pollAttemptRef.current = 0;
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 409) {
         setError(`${module.module_id} changed on the server. Authoritative state was reloaded.`);
-        await loadModules();
+        const latest = await loadModules();
+        const authoritative = latest.find((item) => item.module_id === module.module_id);
+        if (authoritative) {
+          setDrafts((current) => ({
+            ...current,
+            [module.module_id]: initialDraft(authoritative),
+          }));
+        }
       } else if (requiresMfaStepUp(caught)) {
         setMfaModuleId(module.module_id);
         setError('');
@@ -214,7 +238,7 @@ export default function RuntimeModulesPanel() {
       setMfaModuleId(null);
       setNotice(`MFA verified for ${moduleId}; review and confirm the module change again.`);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'MFA verification failed.');
+      setError(mfaStepUpFailureMessage(caught));
       setMfaCode('');
     } finally {
       setVerifyingMfa(false);
@@ -248,19 +272,25 @@ export default function RuntimeModulesPanel() {
                 <code>{module.module_id}</code>
               </header>
               <dl className="admin-readonly-grid">
+                <div><dt>Domain owner</dt><dd>{moduleDomain(module.module_id)}</dd></div>
                 <div><dt>Desired</dt><dd>{module.desired_state}</dd></div>
                 <div><dt>Resolved inherited value</dt><dd>{module.resolved_enabled ? 'enabled' : 'disabled'}</dd></div>
-                <div><dt>Actual</dt><dd>{module.actual_state}</dd></div>
+                <div><dt>Actual</dt><dd>{actualStateLabel(module.actual_state)}</dd></div>
                 <div><dt>Revision</dt><dd>{module.revision}</dd></div>
+                <div><dt>Transition revision</dt><dd>{module.transition_revision ?? '—'}</dd></div>
                 <div><dt>Applied revision</dt><dd>{module.applied_revision ?? '—'}</dd></div>
                 <div><dt>Disable policy</dt><dd>{module.disable_policy}</dd></div>
                 <div><dt>Drain deadline</dt><dd>{formatTimestamp(module.drain_deadline)}</dd></div>
                 <div><dt>Failure</dt><dd>{module.failure_code ?? '—'}</dd></div>
+                <div><dt>Last state update</dt><dd>{formatTimestamp(module.updated_at)}</dd></div>
               </dl>
               <p><strong>Dependencies:</strong> {module.dependencies.join(', ') || 'None'}</p>
               <p><strong>Dependents:</strong> {module.dependents.join(', ') || 'None'}</p>
               {accepted && (
-                <p role="status">Change accepted/pending at revision {accepted.revision}.</p>
+                <p role="status">
+                  HTTP 202 Accepted — transition pending at revision {accepted.revision}. Actual state
+                  remains {actualStateLabel(module.actual_state)} until reconciliation completes.
+                </p>
               )}
               <label>
                 Desired mode for {module.module_id}
@@ -292,21 +322,11 @@ export default function RuntimeModulesPanel() {
                   onChange={(event) => updateDraft(module, { reason: event.target.value })}
                 />
               </label>
-              <label>
-                <input
-                  type="checkbox"
-                  aria-label={`Cascade dependency changes for ${module.module_id}`}
-                  checked={draft.cascade}
-                  onChange={(event) => updateDraft(module, { cascade: event.target.checked })}
-                />
-                Cascade dependency changes (default off)
-              </label>
               <button
                 type="button"
                 className="btn-primary"
                 disabled={!draft.reason.trim() || savingModule === module.module_id}
                 onClick={() => {
-                  setCascadeConfirmed(false);
                   setReviewing(module);
                 }}
               >
@@ -323,8 +343,13 @@ export default function RuntimeModulesPanel() {
           <ul>
             {events.map((event) => (
               <li key={event.event_id}>
-                <strong>{event.event_type}</strong> · {event.module_id} · revision {event.revision}
-                {event.reason ? ` · ${event.reason}` : ''}
+                <strong>{eventTypeLabel(event.event_type)}</strong> · {event.module_id} · revision {event.revision}
+                {' · '}{formatTimestamp(event.created_at)}
+                <br />
+                Actor: {event.actor_id ?? 'system'} · Instance: {event.instance_id ?? '—'} · State:{' '}
+                {event.before_state ?? '—'} → {event.after_state ?? '—'} · Outcome:{' '}
+                {event.outcome_code ?? '—'}
+                {event.reason ? <><br />Reason: {event.reason}</> : null}
               </li>
             ))}
           </ul>
@@ -339,22 +364,15 @@ export default function RuntimeModulesPanel() {
           </p>
           <p>Dependencies: {reviewing.dependencies.join(', ') || 'None'}.</p>
           <p>Dependents: {reviewing.dependents.join(', ') || 'None'}.</p>
-          {drafts[reviewing.module_id]?.cascade && <p>Explicit cascade requested; affected dependents must be changed together.</p>}
-          {cascadeConfirmed && <p role="alert">Confirm the cascade impact one final time.</p>}
+          <p>Dependent modules are never changed implicitly. Resolve dependency conflicts explicitly.</p>
           <button type="button" className="btn-secondary" onClick={() => setReviewing(null)}>Cancel</button>
           <button
             type="button"
             className="btn-primary"
             disabled={savingModule === reviewing.module_id}
-            onClick={() => {
-              if (drafts[reviewing.module_id]?.cascade && !cascadeConfirmed) {
-                setCascadeConfirmed(true);
-                return;
-              }
-              void submitChange(reviewing);
-            }}
+            onClick={() => void submitChange(reviewing)}
           >
-            {cascadeConfirmed ? 'Confirm cascade impact' : `Confirm ${reviewing.module_id} change`}
+            Confirm {reviewing.module_id} change
           </button>
         </section>
       )}

@@ -1,5 +1,13 @@
 export type RuntimeDesiredMode = 'inherit' | 'enabled' | 'disabled';
 export type RuntimeActualState = 'disabled' | 'starting' | 'enabled' | 'draining' | 'failed';
+export type RuntimeModuleEventType =
+  | 'desired_state_changed'
+  | 'transition_started'
+  | 'transition_completed'
+  | 'transition_failed'
+  | 'drain_started'
+  | 'drain_completed'
+  | 'stale_transition_discarded';
 
 export interface RuntimeModuleStatus {
   module_id: string;
@@ -26,7 +34,7 @@ export interface RuntimeModuleListResponse {
 export interface RuntimeModuleEvent {
   event_id: string;
   module_id: string;
-  event_type: string;
+  event_type: RuntimeModuleEventType;
   instance_id: string | null;
   actor_id: string | null;
   reason: string | null;
