@@ -6,8 +6,11 @@ The application is built with React, TypeScript, and Vite. It talks to the NazoA
 
 ## Local Development
 
+Use Node.js 24.16.0 and npm 11.13.x. The repository records both constraints in
+`.nvmrc` and `package.json`.
+
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -25,7 +28,10 @@ VITE_API_BASE_URL=https://auth.nazo.run npm run dev
 npm run test
 ```
 
-`npm run test` runs linting and the production build.
+`npm run test` runs the delivery contract, ESLint, Vitest component tests, and
+the production TypeScript/Vite build. `npm run audit` fails on any published
+advisory at low severity or higher. GitHub Actions runs both commands for every
+frontend-affecting pull request, while Dependabot checks npm and Actions weekly.
 
 ## Deployment
 
