@@ -3,6 +3,7 @@ import { ApiError, apiFetch } from '../../lib/api';
 import type {
   AcceptedRuntimeModuleChange,
   RuntimeDesiredMode,
+  RuntimeModuleAction,
   RuntimeModuleEvent,
   RuntimeModuleEventListResponse,
   RuntimeModuleListResponse,
@@ -10,7 +11,9 @@ import type {
 } from './runtimeModuleTypes';
 import {
   actualStateLabel,
+  disablePolicyLabel,
   eventTypeLabel,
+  isRevisionConflict,
   mergeRuntimeModuleStatuses,
   mfaStepUpFailureMessage,
   moduleDomain,
@@ -19,6 +22,8 @@ import {
 type ModuleDraft = {
   desiredState: RuntimeDesiredMode;
   reason: string;
+  baseDesiredState: RuntimeDesiredMode;
+  baseRevision: number;
 };
 
 type PendingChange = AcceptedRuntimeModuleChange;
@@ -27,10 +32,19 @@ const DESIRED_MODES: RuntimeDesiredMode[] = ['inherit', 'enabled', 'disabled'];
 const POLL_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 10_000] as const;
 
 function initialDraft(module: RuntimeModuleStatus): ModuleDraft {
-  return { desiredState: module.desired_state, reason: '' };
+  return {
+    desiredState: module.desired_state,
+    reason: '',
+    baseDesiredState: module.desired_state,
+    baseRevision: module.revision,
+  };
 }
 
-function actionForMode(mode: RuntimeDesiredMode): string {
+function isDirty(draft: ModuleDraft): boolean {
+  return draft.desiredState !== draft.baseDesiredState || Boolean(draft.reason.trim());
+}
+
+function actionForMode(mode: RuntimeDesiredMode): RuntimeModuleAction {
   return mode === 'enabled' ? 'enable' : mode === 'disabled' ? 'disable' : 'inherit';
 }
 
@@ -74,6 +88,7 @@ export default function RuntimeModulesPanel() {
   const [reviewing, setReviewing] = useState<RuntimeModuleStatus | null>(null);
   const [pending, setPending] = useState<Record<string, PendingChange>>({});
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [savingModule, setSavingModule] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -96,7 +111,10 @@ export default function RuntimeModulesPanel() {
     setDrafts((current) => {
       const next = { ...current };
       for (const module of response.items) {
-        next[module.module_id] ??= initialDraft(module);
+        const draft = next[module.module_id];
+        if (!draft || (draft.baseRevision !== module.revision && !isDirty(draft))) {
+          next[module.module_id] = initialDraft(module);
+        }
       }
       return next;
     });
@@ -173,6 +191,18 @@ export default function RuntimeModulesPanel() {
     }));
   };
 
+  const refreshAll = async () => {
+    setRefreshing(true);
+    setError('');
+    try {
+      await Promise.all([loadModules(), loadEvents()]);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not refresh runtime modules.');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const submitChange = async (module: RuntimeModuleStatus) => {
     const draft = drafts[module.module_id] ?? initialDraft(module);
     setSavingModule(module.module_id);
@@ -193,21 +223,34 @@ export default function RuntimeModulesPanel() {
         }
       );
       setPending((current) => ({ ...current, [module.module_id]: accepted }));
-      setNotice(
-        `${module.module_id}: HTTP 202 Accepted; transition pending at revision ${accepted.revision}.`
-      );
+      setDrafts((current) => ({
+        ...current,
+        [module.module_id]: {
+          desiredState: accepted.desired_state,
+          reason: '',
+          baseDesiredState: accepted.desired_state,
+          baseRevision: accepted.revision,
+        },
+      }));
       setReviewing(null);
       pollAttemptRef.current = 0;
     } catch (caught) {
-      if (caught instanceof ApiError && caught.status === 409) {
+      if (isRevisionConflict(caught)) {
         setError(`${module.module_id} changed on the server. Authoritative state was reloaded.`);
-        const latest = await loadModules();
-        const authoritative = latest.find((item) => item.module_id === module.module_id);
-        if (authoritative) {
-          setDrafts((current) => ({
-            ...current,
-            [module.module_id]: initialDraft(authoritative),
-          }));
+        try {
+          const latest = await loadModules();
+          const authoritative = latest.find((item) => item.module_id === module.module_id);
+          if (authoritative) {
+            setDrafts((current) => ({
+              ...current,
+              [module.module_id]: initialDraft(authoritative),
+            }));
+          }
+        } catch (reloadError) {
+          const detail = reloadError instanceof Error ? reloadError.message : 'reload failed';
+          setError(
+            `${module.module_id} changed on the server, but authoritative reload failed: ${detail}`
+          );
         }
       } else if (requiresMfaStepUp(caught)) {
         setMfaModuleId(module.module_id);
@@ -256,6 +299,14 @@ export default function RuntimeModulesPanel() {
           <h2 id="runtime-modules-title">Runtime Modules</h2>
           <p>Desired intent and observed runtime state are shown separately.</p>
         </div>
+        <button
+          type="button"
+          className="btn-secondary"
+          disabled={refreshing}
+          onClick={() => void refreshAll()}
+        >
+          {refreshing ? 'Refreshing…' : 'Refresh runtime state'}
+        </button>
       </header>
 
       {error && <p className="admin-feedback error" role="alert">{error}</p>}
@@ -265,6 +316,10 @@ export default function RuntimeModulesPanel() {
         {modules.map((module) => {
           const draft = drafts[module.module_id] ?? initialDraft(module);
           const accepted = pending[module.module_id];
+          const draftIsStale = draft.baseRevision !== module.revision;
+          const selectedActionAllowed =
+            draft.desiredState === module.desired_state ||
+            module.allowed_actions.includes(actionForMode(draft.desiredState));
           return (
             <article className="admin-card runtime-module-card" key={module.module_id}>
               <header>
@@ -279,7 +334,7 @@ export default function RuntimeModulesPanel() {
                 <div><dt>Revision</dt><dd>{module.revision}</dd></div>
                 <div><dt>Transition revision</dt><dd>{module.transition_revision ?? '—'}</dd></div>
                 <div><dt>Applied revision</dt><dd>{module.applied_revision ?? '—'}</dd></div>
-                <div><dt>Disable policy</dt><dd>{module.disable_policy}</dd></div>
+                <div><dt>Disable policy</dt><dd>{disablePolicyLabel(module.disable_policy)}</dd></div>
                 <div><dt>Drain deadline</dt><dd>{formatTimestamp(module.drain_deadline)}</dd></div>
                 <div><dt>Failure</dt><dd>{module.failure_code ?? '—'}</dd></div>
                 <div><dt>Last state update</dt><dd>{formatTimestamp(module.updated_at)}</dd></div>
@@ -290,6 +345,25 @@ export default function RuntimeModulesPanel() {
                 <p role="status">
                   HTTP 202 Accepted — transition pending at revision {accepted.revision}. Actual state
                   remains {actualStateLabel(module.actual_state)} until reconciliation completes.
+                </p>
+              )}
+              {draftIsStale && (
+                <p role="alert">
+                  Server revision changed from {draft.baseRevision} to {module.revision} while this
+                  draft was being edited. Review the authoritative state before continuing.
+                  {' '}
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() =>
+                      setDrafts((current) => ({
+                        ...current,
+                        [module.module_id]: initialDraft(module),
+                      }))
+                    }
+                  >
+                    Reset draft to server state
+                  </button>
                 </p>
               )}
               <label>
@@ -325,7 +399,13 @@ export default function RuntimeModulesPanel() {
               <button
                 type="button"
                 className="btn-primary"
-                disabled={!draft.reason.trim() || savingModule === module.module_id}
+                disabled={
+                  draftIsStale ||
+                  draft.desiredState === module.desired_state ||
+                  !selectedActionAllowed ||
+                  !draft.reason.trim() ||
+                  savingModule === module.module_id
+                }
                 onClick={() => {
                   setReviewing(module);
                 }}

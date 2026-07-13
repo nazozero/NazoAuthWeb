@@ -1,5 +1,11 @@
 export type RuntimeDesiredMode = 'inherit' | 'enabled' | 'disabled';
 export type RuntimeActualState = 'disabled' | 'starting' | 'enabled' | 'draining' | 'failed';
+export type RuntimeModuleAction = 'inherit' | 'enable' | 'disable';
+export type RuntimeDisablePolicy =
+  | 'immediate'
+  | 'finish_executing_requests'
+  | `drain_stored_transactions:${number}s`
+  | 'not_runtime_disableable';
 export type RuntimeModuleEventType =
   | 'desired_state_changed'
   | 'transition_started'
@@ -20,8 +26,8 @@ export interface RuntimeModuleStatus {
   applied_revision: number | null;
   dependencies: string[];
   dependents: string[];
-  allowed_actions: string[];
-  disable_policy: string;
+  allowed_actions: RuntimeModuleAction[];
+  disable_policy: RuntimeDisablePolicy;
   drain_deadline: string | null;
   failure_code: string | null;
   updated_at: string;

@@ -1,6 +1,7 @@
 import { ApiError } from '../../lib/api';
 import type {
   RuntimeActualState,
+  RuntimeDisablePolicy,
   RuntimeModuleEvent,
   RuntimeModuleStatus,
 } from './runtimeModuleTypes';
@@ -68,6 +69,21 @@ export function eventTypeLabel(eventType: RuntimeModuleEvent['event_type']): str
   }
 }
 
+export function disablePolicyLabel(policy: RuntimeDisablePolicy): string {
+  switch (policy) {
+    case 'immediate':
+      return 'Immediate';
+    case 'finish_executing_requests':
+      return 'Finish executing requests';
+    case 'not_runtime_disableable':
+      return 'Not runtime disableable';
+    default: {
+      const seconds = policy.slice('drain_stored_transactions:'.length, -1);
+      return `Drain stored transactions (maximum ${seconds} seconds)`;
+    }
+  }
+}
+
 export function mergeRuntimeModuleStatuses(
   current: RuntimeModuleStatus[],
   incoming: RuntimeModuleStatus[]
@@ -81,12 +97,47 @@ export function mergeRuntimeModuleStatuses(
     if (previous.revision > module.revision) {
       return previous;
     }
+    const previousAppliedRevision = previous.applied_revision ?? -1;
+    const incomingAppliedRevision = module.applied_revision ?? -1;
+    if (previousAppliedRevision !== incomingAppliedRevision) {
+      return previousAppliedRevision > incomingAppliedRevision ? previous : module;
+    }
+    const previousTransitionRevision = previous.transition_revision ?? -1;
+    const incomingTransitionRevision = module.transition_revision ?? -1;
+    if (previousTransitionRevision !== incomingTransitionRevision) {
+      return previousTransitionRevision > incomingTransitionRevision ? previous : module;
+    }
     const previousUpdatedAt = Date.parse(previous.updated_at);
     const incomingUpdatedAt = Date.parse(module.updated_at);
-    return Number.isFinite(previousUpdatedAt) && previousUpdatedAt > incomingUpdatedAt
+    if (Number.isFinite(previousUpdatedAt) && Number.isFinite(incomingUpdatedAt)) {
+      if (previousUpdatedAt !== incomingUpdatedAt) {
+        return previousUpdatedAt > incomingUpdatedAt ? previous : module;
+      }
+    }
+    return actualStateEvidence(previous.actual_state) >= actualStateEvidence(module.actual_state)
       ? previous
       : module;
   });
+}
+
+function actualStateEvidence(state: RuntimeActualState): number {
+  switch (state) {
+    case 'enabled':
+    case 'disabled':
+    case 'failed':
+      return 2;
+    case 'starting':
+    case 'draining':
+      return 1;
+  }
+}
+
+export function isRevisionConflict(error: unknown): error is ApiError {
+  if (!(error instanceof ApiError) || error.status !== 409) {
+    return false;
+  }
+  const payload = error.payload;
+  return !Array.isArray(payload) && payload?.error === 'revision_conflict';
 }
 
 export function mfaStepUpFailureMessage(error: unknown): string {

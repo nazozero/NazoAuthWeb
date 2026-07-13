@@ -27,7 +27,7 @@ const moduleList = {
       dependencies: ['request_objects'],
       dependents: ['native_sso'],
       allowed_actions: ['inherit', 'disable'],
-      disable_policy: 'drain_stored_transactions',
+      disable_policy: 'drain_stored_transactions:300s',
       drain_deadline: null,
       failure_code: null,
       updated_at: '2026-07-13T08:00:00Z',
@@ -156,6 +156,7 @@ describe('RuntimeModulesPanel', () => {
     render(<RuntimeModulesPanel />);
 
     await screen.findByRole('heading', { name: /Client Initiated Backchannel Authentication/i });
+    await user.selectOptions(screen.getByLabelText('Desired mode for ciba'), 'inherit');
     await user.type(screen.getByLabelText('Reason for ciba'), 'Reconfirm CIBA configuration');
     await user.click(screen.getByRole('button', { name: 'Review ciba change' }));
     await user.click(screen.getByRole('button', { name: 'Confirm ciba change' }));
@@ -171,6 +172,83 @@ describe('RuntimeModulesPanel', () => {
       mockedApiFetch.mock.calls.filter(([, init]) => init?.method === 'PATCH')
     ).toHaveLength(1);
     expect(screen.queryByDisplayValue('123456')).not.toBeInTheDocument();
+  });
+
+  it('does not misreport a disable-policy conflict as a revision conflict', async () => {
+    mockedApiFetch.mockImplementation(async (path, init) => {
+      if (path === '/admin/runtime-modules' && !init?.method) {
+        return moduleList;
+      }
+      if (path.startsWith('/admin/runtime-modules/events')) {
+        return { total: 0, page: 1, page_size: 20, items: [] };
+      }
+      if (path === '/admin/runtime-modules/ciba' && init?.method === 'PATCH') {
+        throw new ApiError('Runtime module dependencies reject this change.', 409, {
+          error: 'invalid_request',
+        });
+      }
+      throw new Error(`unexpected request: ${path}`);
+    });
+    const user = userEvent.setup();
+    render(<RuntimeModulesPanel />);
+
+    await screen.findByRole('heading', { name: /Client Initiated Backchannel Authentication/i });
+    await user.selectOptions(screen.getByLabelText('Desired mode for ciba'), 'inherit');
+    await user.type(screen.getByLabelText('Reason for ciba'), 'Change policy');
+    await user.click(screen.getByRole('button', { name: 'Review ciba change' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm ciba change' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Runtime module dependencies reject this change.'
+    );
+    expect(screen.queryByText(/Authoritative state was reloaded/i)).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue('Change policy')).toBeInTheDocument();
+    expect(
+      mockedApiFetch.mock.calls.filter(([path]) => path === '/admin/runtime-modules')
+    ).toHaveLength(1);
+  });
+
+  it('blocks a dirty draft when a manual refresh observes a newer revision', async () => {
+    let listCalls = 0;
+    mockedApiFetch.mockImplementation(async (path, init) => {
+      if (path === '/admin/runtime-modules' && !init?.method) {
+        listCalls += 1;
+        if (listCalls === 1) {
+          return moduleList;
+        }
+        return {
+          items: [
+            {
+              ...moduleList.items[0],
+              desired_state: 'inherit',
+              revision: 8,
+              updated_at: '2026-07-13T08:01:00Z',
+            },
+          ],
+        };
+      }
+      if (path.startsWith('/admin/runtime-modules/events')) {
+        return { total: 0, page: 1, page_size: 20, items: [] };
+      }
+      throw new Error(`unexpected request: ${path}`);
+    });
+    const user = userEvent.setup();
+    render(<RuntimeModulesPanel />);
+
+    await screen.findByRole('heading', { name: /Client Initiated Backchannel Authentication/i });
+    await user.selectOptions(screen.getByLabelText('Desired mode for ciba'), 'inherit');
+    await user.type(screen.getByLabelText('Reason for ciba'), 'Operator draft');
+    await user.click(screen.getByRole('button', { name: 'Refresh runtime state' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Server revision changed from 7 to 8'
+    );
+    expect(screen.getByRole('button', { name: 'Review ciba change' })).toBeDisabled();
+    expect(screen.getByDisplayValue('Operator draft')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Reset draft to server state' }));
+    expect(screen.queryByDisplayValue('Operator draft')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Server revision changed from/i)).not.toBeInTheDocument();
   });
 
   it.each([
