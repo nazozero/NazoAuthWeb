@@ -18,10 +18,11 @@ import {
   Upload,
   UserRound,
 } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { ApiError, apiFetch } from '../lib/api';
 import { resolveAvatarUrl } from '../lib/avatar';
+import { accessRequestDeliveryPath } from '../lib/accessDelivery';
 import {
   alertVariants,
   contentSwitchVariants,
@@ -58,6 +59,18 @@ function resolveErrorMessage(error: unknown, fallback: string): string {
     return error.message;
   }
   return fallback;
+}
+
+function AccessRequestDeliveryLink({ item }: { item: ClientAccessRequestItem }) {
+  const path = accessRequestDeliveryPath(item.status, item.delivery_token);
+  if (!path) {
+    return null;
+  }
+  return (
+    <Link className="btn-secondary" to={path}>
+      Read one-time credentials
+    </Link>
+  );
 }
 
 function normalizeTab(value: string | null): ProfileTab {
@@ -765,6 +778,7 @@ export default function Profile() {
                       <p>Submitted: {formatDateTime(item.created_at)}</p>
                       {item.resolved_at && <p>Resolved: {formatDateTime(item.resolved_at)}</p>}
                       {item.admin_note && <p>Admin note: {item.admin_note}</p>}
+                      <AccessRequestDeliveryLink item={item} />
                     </motion.li>
                   ))}
                 </motion.ul>

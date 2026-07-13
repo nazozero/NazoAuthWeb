@@ -123,7 +123,7 @@ export default function Delivery() {
         <div className="glass delivery-state-card">
           <AlertTriangle size={20} />
           <h1>Missing credential link parameter</h1>
-          <p>The current URL does not include a one-time token. Use the full link from the email.</p>
+          <p>The current URL does not include a one-time token. Open the link from your access-request history.</p>
           <Link to="/profile?tab=access-requests" className="btn-secondary">
             Back to access requests
           </Link>

@@ -46,6 +46,7 @@ export class ApiError extends Error {
 type CsrfMode = 'auto' | 'defer';
 type ApiFetchInit = RequestInit & {
   csrf?: CsrfMode;
+  expectedStatus?: number;
 };
 
 function resolveMessage(payload: JsonValue, fallback: string): string {
@@ -117,7 +118,7 @@ export async function apiFetch<T>(
   path: string,
   init: ApiFetchInit = {}
 ): Promise<T> {
-  const { csrf = 'auto', ...fetchInit } = init;
+  const { csrf = 'auto', expectedStatus, ...fetchInit } = init;
   const method = (init.method ?? 'GET').toUpperCase();
   const headers = new Headers(init.headers ?? {});
   let csrfToken = getCookie(CSRF_COOKIE_NAME) ?? inMemoryCsrfToken;
@@ -151,11 +152,14 @@ export async function apiFetch<T>(
     }
   }
 
-  if (!response.ok) {
+  if (!response.ok || (expectedStatus !== undefined && response.status !== expectedStatus)) {
     if (response.status === 401) {
       clearSessionHint();
     }
-    throw new ApiError(resolveMessage(payload, 'Request failed'), response.status, payload);
+    const fallback = response.ok
+      ? `Expected HTTP ${expectedStatus}, received HTTP ${response.status}`
+      : 'Request failed';
+    throw new ApiError(resolveMessage(payload, fallback), response.status, payload);
   }
 
   return payload as T;

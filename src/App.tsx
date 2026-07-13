@@ -19,7 +19,7 @@ const Profile = lazy(() => import('./pages/Profile'));
 const Consent = lazy(() => import('./pages/Consent'));
 const Device = lazy(() => import('./pages/Device'));
 const Ciba = lazy(() => import('./pages/Ciba'));
-const Admin = lazy(() => import('./pages/Admin'));
+const Admin = lazy(() => import('./pages/admin/AdminPage'));
 const Delivery = lazy(() => import('./pages/Delivery'));
 
 function RouteLoadingFallback() {
