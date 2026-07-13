@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   AlertTriangle,
   AppWindow,
-  Ban,
   CheckCircle2,
   FileClock,
   Link2,
@@ -11,7 +10,6 @@ import {
   Plus,
   Search,
   ShieldCheck,
-  UserRoundCog,
   Users,
   X,
   XCircle,
@@ -33,28 +31,19 @@ import type {
   AdminAccessRequestListResponse,
   AdminClientItem,
   AdminClientListResponse,
-  AdminGrantItem,
-  AdminGrantListResponse,
-  AdminGrantRevokeResponse,
-  AdminUserItem,
-  AdminUserListResponse,
 } from '../../types/auth';
 import {
   ClientAccessRequestStatus,
   clientAccessRequestStatusMeta,
 } from '../../types/auth';
+import GrantsPanel from './GrantsPanel';
 import RuntimeModulesPanel from './RuntimeModulesPanel';
+import UsersPanel from './UsersPanel';
 import '../Admin.css';
 
 type AdminTab = 'users' | 'clients' | 'grants' | 'access-requests' | 'runtime-modules';
 type ClientTypeValue = 'public' | 'confidential';
 type AuthMethodValue = 'none' | 'client_secret_basic' | 'client_secret_post';
-
-type UserPatchPayload = {
-  role?: 'user' | 'admin';
-  admin_level?: number;
-  is_active?: boolean;
-};
 
 type ClientFormModel = {
   clientName: string;
@@ -267,23 +256,12 @@ export default function Admin() {
     'access-requests': false,
     'runtime-modules': false,
   });
-  const usersRequestIdRef = useRef(0);
   const clientsRequestIdRef = useRef(0);
-  const grantsRequestIdRef = useRef(0);
   const accessRequestsRequestIdRef = useRef(0);
 
   const [feedbackError, setFeedbackError] = useState('');
   const [feedbackSuccess, setFeedbackSuccess] = useState('');
 
-  const [users, setUsers] = useState<AdminUserItem[]>([]);
-  const [usersTotal, setUsersTotal] = useState(0);
-  const [usersLoading, setUsersLoading] = useState(false);
-  const [usersPage, setUsersPage] = useState(1);
-  const usersPageSize = 20;
-  const [usersQuery, setUsersQuery] = useState('');
-  const [usersRoleFilter, setUsersRoleFilter] = useState('');
-  const [usersActiveFilter, setUsersActiveFilter] = useState('');
-  const [userUpdatingId, setUserUpdatingId] = useState('');
 
   const [clients, setClients] = useState<AdminClientItem[]>([]);
   const [clientsTotal, setClientsTotal] = useState(0);
@@ -312,13 +290,6 @@ export default function Admin() {
   const [editClientForm, setEditClientForm] = useState<ClientFormModel | null>(null);
   const [savingClientEdit, setSavingClientEdit] = useState(false);
 
-  const [grants, setGrants] = useState<AdminGrantItem[]>([]);
-  const [grantsTotal, setGrantsTotal] = useState(0);
-  const [grantsLoading, setGrantsLoading] = useState(false);
-  const [grantsPage, setGrantsPage] = useState(1);
-  const grantsPageSize = 20;
-  const [grantsQuery, setGrantsQuery] = useState('');
-  const [revokingGrantKey, setRevokingGrantKey] = useState('');
 
   const [accessRequests, setAccessRequests] = useState<AdminAccessRequestItem[]>([]);
   const [accessRequestsTotal, setAccessRequestsTotal] = useState(0);
@@ -405,40 +376,6 @@ export default function Admin() {
     }
   }, [canAccessAdmin, scopesLoaded, scopesLoading]);
 
-  const loadUsers = useCallback(
-    async (page = 1) => {
-      const requestId = ++usersRequestIdRef.current;
-      setUsersLoading(true);
-      try {
-        const query = buildPaginationQuery({
-          page,
-          pageSize: usersPageSize,
-          q: usersQuery,
-          role: usersRoleFilter,
-          isActive: usersActiveFilter,
-        });
-        const result = await apiFetch<AdminUserListResponse>(`/admin/users?${query}`);
-        if (requestId !== usersRequestIdRef.current) {
-          return;
-        }
-        tabLoadedRef.current.users = true;
-        setUsers(result.items);
-        setUsersTotal(result.total);
-        setUsersPage(result.page);
-      } catch (error) {
-        if (requestId !== usersRequestIdRef.current) {
-          return;
-        }
-        setFeedbackError(resolveErrorMessage(error, 'Could not load users.'));
-      } finally {
-        if (requestId === usersRequestIdRef.current) {
-          setUsersLoading(false);
-        }
-      }
-    },
-    [usersActiveFilter, usersPageSize, usersQuery, usersRoleFilter]
-  );
-
   const loadClients = useCallback(
     async (page = 1) => {
       const requestId = ++clientsRequestIdRef.current;
@@ -470,38 +407,6 @@ export default function Admin() {
       }
     },
     [clientsActiveFilter, clientsPageSize, clientsQuery]
-  );
-
-  const loadGrants = useCallback(
-    async (page = 1) => {
-      const requestId = ++grantsRequestIdRef.current;
-      setGrantsLoading(true);
-      try {
-        const query = buildPaginationQuery({
-          page,
-          pageSize: grantsPageSize,
-          q: grantsQuery,
-        });
-        const result = await apiFetch<AdminGrantListResponse>(`/admin/grants?${query}`);
-        if (requestId !== grantsRequestIdRef.current) {
-          return;
-        }
-        tabLoadedRef.current.grants = true;
-        setGrants(result.items);
-        setGrantsTotal(result.total);
-        setGrantsPage(result.page);
-      } catch (error) {
-        if (requestId !== grantsRequestIdRef.current) {
-          return;
-        }
-        setFeedbackError(resolveErrorMessage(error, 'Could not load grants.'));
-      } finally {
-        if (requestId === grantsRequestIdRef.current) {
-          setGrantsLoading(false);
-        }
-      }
-    },
-    [grantsPageSize, grantsQuery]
   );
 
   const loadAccessRequests = useCallback(
@@ -551,16 +456,12 @@ export default function Admin() {
       if (tabLoadedRef.current[tab]) {
         return;
       }
-      if (tab === 'users') {
-        void loadUsers(1);
+      if (tab === 'users' || tab === 'grants') {
+        tabLoadedRef.current[tab] = true;
         return;
       }
       if (tab === 'clients') {
         void loadClients(1);
-        return;
-      }
-      if (tab === 'grants') {
-        void loadGrants(1);
         return;
       }
       if (tab === 'runtime-modules') {
@@ -569,7 +470,7 @@ export default function Admin() {
       }
       void loadAccessRequests(1);
     },
-    [loadAccessRequests, loadClients, loadGrants, loadUsers]
+    [loadAccessRequests, loadClients]
   );
 
   useEffect(() => {
@@ -621,17 +522,9 @@ export default function Admin() {
     showRejectRequestModal,
   ]);
 
-  const usersTotalPages = useMemo(
-    () => Math.max(1, Math.ceil(usersTotal / usersPageSize)),
-    [usersPageSize, usersTotal]
-  );
   const clientsTotalPages = useMemo(
     () => Math.max(1, Math.ceil(clientsTotal / clientsPageSize)),
     [clientsPageSize, clientsTotal]
-  );
-  const grantsTotalPages = useMemo(
-    () => Math.max(1, Math.ceil(grantsTotal / grantsPageSize)),
-    [grantsPageSize, grantsTotal]
   );
   const accessRequestsTotalPages = useMemo(
     () => Math.max(1, Math.ceil(accessRequestsTotal / accessRequestsPageSize)),
@@ -661,24 +554,6 @@ export default function Admin() {
       scopeOptions,
     ]
   );
-
-  const updateUser = async (userId: string, payload: UserPatchPayload, successMsg: string) => {
-    setUserUpdatingId(userId);
-    clearFeedback();
-    try {
-      const updatedUser = await apiFetch<AdminUserItem>(`/admin/users/${encodeURIComponent(userId)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      setFeedbackSuccess(successMsg);
-      setUsers((prev) => prev.map((u) => (u.id === userId ? updatedUser : u)));
-    } catch (error) {
-      setFeedbackError(resolveErrorMessage(error, 'Could not update user.'));
-    } finally {
-      setUserUpdatingId('');
-    }
-  };
 
   const updateClient = async (
     clientId: string,
@@ -896,30 +771,6 @@ export default function Admin() {
     }
   };
 
-  const handleRevokeGrant = async (item: AdminGrantItem) => {
-    const key = `${item.user_id}:${item.client_id}`;
-    setRevokingGrantKey(key);
-    clearFeedback();
-    try {
-      const result = await apiFetch<AdminGrantRevokeResponse>('/admin/grants/revoke', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: item.user_id,
-          client_id: item.client_id,
-        }),
-      });
-      setFeedbackSuccess(
-        `Revoked: ${result.revoked_refresh_tokens} refresh tokens, ${result.removed_grants} grant records.`
-      );
-      await loadGrants(grantsPage);
-    } catch (error) {
-      setFeedbackError(resolveErrorMessage(error, 'Could not revoke grant.'));
-    } finally {
-      setRevokingGrantKey('');
-    }
-  };
-
   if (loading || (!user && !sessionChecked)) {
     return <div className="container admin-loading">Checking admin session...</div>;
   }
@@ -1049,164 +900,7 @@ export default function Admin() {
         </motion.nav>
 
         <AnimatePresence mode="wait">
-          {activeTab === 'users' && (
-            <motion.section
-              key="tab-users"
-              variants={contentSwitchVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              layout
-              className="admin-card glass"
-            >
-            <header className="admin-card-head">
-              <h2>
-                <UserRoundCog size={18} />
-                <span>User management</span>
-              </h2>
-              <div className="admin-query-row">
-                <input
-                  value={usersQuery}
-                  onChange={(event) => setUsersQuery(event.target.value)}
-                  placeholder="Search by email or user name"
-                />
-                <select
-                  value={usersRoleFilter}
-                  onChange={(event) => setUsersRoleFilter(event.target.value)}
-                >
-                  <option value="">All roles</option>
-                  <option value="user">user</option>
-                  <option value="admin">admin</option>
-                </select>
-                <select
-                  value={usersActiveFilter}
-                  onChange={(event) => setUsersActiveFilter(event.target.value)}
-                >
-                  <option value="">All states</option>
-                  <option value="true">Enable</option>
-                  <option value="false">Disable</option>
-                </select>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={usersLoading}
-                  onClick={() => void loadUsers(1)}
-                >
-                  <Search size={14} />
-                  <span>Search</span>
-                </button>
-              </div>
-            </header>
-
-            {usersLoading ? (
-              <div className="admin-placeholder">Loading users...</div>
-            ) : users.length === 0 ? (
-              <div className="admin-placeholder">No users found.</div>
-            ) : (
-              <motion.ul
-                className="admin-list"
-                variants={revealContainerVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                layout
-              >
-                {users.map((item) => {
-                  const busy = userUpdatingId === item.id;
-                  return (
-                    <motion.li
-                      key={item.id}
-                      className="admin-list-item"
-                      variants={revealItemVariants}
-                      layout
-                    >
-                      <div className="admin-list-main">
-                        <strong>{item.display_name || item.email}</strong>
-                        <p>{item.email}</p>
-                        <p>
-                          role={item.role} / level={item.admin_level} /{' '}
-                          {item.is_active ? 'active' : 'inactive'}
-                        </p>
-                        <p>Created: {formatDateTime(item.created_at)}</p>
-                      </div>
-                      <div className="admin-list-actions">
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          disabled={busy}
-                          onClick={() =>
-                            void updateUser(
-                              item.id,
-                              { is_active: !item.is_active },
-                              item.is_active ? 'User disabled.' : 'User enabled.'
-                            )
-                          }
-                        >
-                          {item.is_active ? 'Disable' : 'Enable'}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          disabled={busy}
-                          onClick={() =>
-                            void updateUser(
-                              item.id,
-                              {
-                                role: item.role === 'admin' ? 'user' : 'admin',
-                                admin_level: item.role === 'admin' ? 0 : 1,
-                              },
-                              item.role === 'admin' ? 'User demoted to standard user.' : 'User promoted to admin.'
-                            )
-                          }
-                        >
-                          {item.role === 'admin' ? 'Demote' : 'Promote'}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          disabled={busy || item.role !== 'admin'}
-                          onClick={() =>
-                            void updateUser(
-                              item.id,
-                              { admin_level: item.admin_level + 1 },
-                              'Admin level increased.'
-                            )
-                          }
-                        >
-                          Level +1
-                        </button>
-                      </div>
-                    </motion.li>
-                  );
-                })}
-              </motion.ul>
-            )}
-
-            <footer className="admin-pagination">
-              <span>
-                Page {usersPage}/{usersTotalPages} of {usersTotal} items
-              </span>
-              <div>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={usersPage <= 1 || usersLoading}
-                  onClick={() => void loadUsers(usersPage - 1)}
-                >
-                  Previous
-                </button>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={usersPage >= usersTotalPages || usersLoading}
-                  onClick={() => void loadUsers(usersPage + 1)}
-                >
-                  Next
-                </button>
-              </div>
-            </footer>
-            </motion.section>
-          )}
+          {activeTab === 'users' && <UsersPanel />}
 
           {activeTab === 'clients' && (
             <motion.section
@@ -1482,110 +1176,7 @@ export default function Admin() {
             </motion.section>
           )}
 
-          {activeTab === 'grants' && (
-            <motion.section
-              key="tab-grants"
-              variants={contentSwitchVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              layout
-              className="admin-card glass"
-            >
-            <header className="admin-card-head">
-              <h2>
-                <ShieldCheck size={18} />
-                <span>Grants</span>
-              </h2>
-              <div className="admin-query-row">
-                <input
-                  value={grantsQuery}
-                  onChange={(event) => setGrantsQuery(event.target.value)}
-                  placeholder="Search by email, client_id, or client name"
-                />
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={grantsLoading}
-                  onClick={() => void loadGrants(1)}
-                >
-                  <Search size={14} />
-                  <span>Search</span>
-                </button>
-              </div>
-            </header>
-
-            {grantsLoading ? (
-              <div className="admin-placeholder">Loading grants...</div>
-            ) : grants.length === 0 ? (
-              <div className="admin-placeholder">No grants found.</div>
-            ) : (
-              <motion.ul
-                className="admin-list"
-                variants={revealContainerVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                layout
-              >
-                {grants.map((item) => {
-                  const key = `${item.user_id}:${item.client_id}`;
-                  return (
-                    <motion.li
-                      key={key}
-                      className="admin-list-item"
-                      variants={revealItemVariants}
-                      layout
-                    >
-                      <div className="admin-list-main">
-                        <strong>{item.client_name}</strong>
-                        <p>client: {item.client_id}</p>
-                        <p>user: {item.email}</p>
-                        <p>Last authorized: {formatDateTime(item.last_authorized_at)}</p>
-                        <p>scope: {item.last_scopes.join(' ') || '-'}</p>
-                      </div>
-                      <div className="admin-list-actions">
-                        <button
-                          type="button"
-                          className="btn-secondary danger"
-                          disabled={revokingGrantKey === key}
-                          onClick={() => void handleRevokeGrant(item)}
-                        >
-                          <Ban size={14} />
-                          <span>{revokingGrantKey === key ? 'Revoking...' : 'Revoke grant'}</span>
-                        </button>
-                      </div>
-                    </motion.li>
-                  );
-                })}
-              </motion.ul>
-            )}
-
-            <footer className="admin-pagination">
-              <span>
-                Page {grantsPage}/{grantsTotalPages} of {grantsTotal} items
-              </span>
-              <div>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={grantsPage <= 1 || grantsLoading}
-                  onClick={() => void loadGrants(grantsPage - 1)}
-                >
-                  Previous
-                </button>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={grantsPage >= grantsTotalPages || grantsLoading}
-                  onClick={() => void loadGrants(grantsPage + 1)}
-                >
-                  Next
-                </button>
-              </div>
-            </footer>
-            </motion.section>
-          )}
+          {activeTab === 'grants' && <GrantsPanel />}
           {activeTab === 'runtime-modules' && canManageRuntimeModules && (
             <motion.div
               key="tab-runtime-modules"
