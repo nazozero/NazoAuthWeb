@@ -17,9 +17,9 @@ import {
   XCircle,
 } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
-import { buildAuthRedirectWithNext } from '../auth/next';
-import { useAuth } from '../auth/useAuth';
-import { API_BASE_URL, ApiError, apiFetch } from '../lib/api';
+import { buildAuthRedirectWithNext } from '../../auth/next';
+import { useAuth } from '../../auth/useAuth';
+import { API_BASE_URL, ApiError, apiFetch } from '../../lib/api';
 import {
   contentSwitchVariants,
   modalOverlayVariants,
@@ -27,7 +27,7 @@ import {
   pageVariants,
   revealContainerVariants,
   revealItemVariants,
-} from '../lib/motion';
+} from '../../lib/motion';
 import type {
   AdminAccessRequestItem,
   AdminAccessRequestListResponse,
@@ -38,14 +38,15 @@ import type {
   AdminGrantRevokeResponse,
   AdminUserItem,
   AdminUserListResponse,
-} from '../types/auth';
+} from '../../types/auth';
 import {
   ClientAccessRequestStatus,
   clientAccessRequestStatusMeta,
-} from '../types/auth';
-import './Admin.css';
+} from '../../types/auth';
+import RuntimeModulesPanel from './RuntimeModulesPanel';
+import '../Admin.css';
 
-type AdminTab = 'users' | 'clients' | 'grants' | 'access-requests';
+type AdminTab = 'users' | 'clients' | 'grants' | 'access-requests' | 'runtime-modules';
 type ClientTypeValue = 'public' | 'confidential';
 type AuthMethodValue = 'none' | 'client_secret_basic' | 'client_secret_post';
 
@@ -264,6 +265,7 @@ export default function Admin() {
     clients: false,
     grants: false,
     'access-requests': false,
+    'runtime-modules': false,
   });
   const usersRequestIdRef = useRef(0);
   const clientsRequestIdRef = useRef(0);
@@ -339,6 +341,7 @@ export default function Admin() {
   const [rejectingRequest, setRejectingRequest] = useState(false);
 
   const canAccessAdmin = user?.role === 'admin' && user.admin_level >= 1;
+  const canManageRuntimeModules = user?.role === 'admin' && user.admin_level >= 2;
 
   const clearFeedback = () => {
     setFeedbackError('');
@@ -558,6 +561,10 @@ export default function Admin() {
       }
       if (tab === 'grants') {
         void loadGrants(1);
+        return;
+      }
+      if (tab === 'runtime-modules') {
+        tabLoadedRef.current['runtime-modules'] = true;
         return;
       }
       void loadAccessRequests(1);
@@ -1027,6 +1034,18 @@ export default function Admin() {
             <FileClock size={16} />
             <span>Access requests</span>
           </motion.button>
+          {canManageRuntimeModules && (
+            <motion.button
+              layout
+              type="button"
+              className={activeTab === 'runtime-modules' ? 'active' : ''}
+              onClick={() => handleTabChange('runtime-modules')}
+              whileTap={{ scale: 0.98 }}
+            >
+              <ShieldCheck size={16} />
+              <span>Runtime Modules</span>
+            </motion.button>
+          )}
         </motion.nav>
 
         <AnimatePresence mode="wait">
@@ -1566,6 +1585,18 @@ export default function Admin() {
               </div>
             </footer>
             </motion.section>
+          )}
+          {activeTab === 'runtime-modules' && canManageRuntimeModules && (
+            <motion.div
+              key="tab-runtime-modules"
+              variants={contentSwitchVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              layout
+            >
+              <RuntimeModulesPanel />
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
