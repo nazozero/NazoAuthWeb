@@ -15,6 +15,10 @@
   bounded visibility-aware polling, drain/failure details, and audit display.
 - Runtime/auth/operational state remains React memory only; no browser storage
   API was added.
+- Split users, clients, access requests, and grants into real panels. Each panel
+  owns its loading, filters, pagination, mutations, feedback, and rendering and
+  calls `apiFetch` directly. `AdminPage.tsx` is now a 52-line permission/tab
+  shell instead of a 2,500-line state container.
 
 ## TDD evidence
 
@@ -29,12 +33,12 @@
 
 - `dc52bc5` — `feat: add runtime module admin controls`.
 - `c0cbb1a` — `fix: bound runtime module polling`.
+- `695e6d6` — `refactor: split users and grants admin panels`.
+- `bfaa2d6` — `refactor: split client and access request panels`.
 - `npm test`, focused unit tests, ESLint, TypeScript, and Vite build passed.
 
-## Remaining scope
+## Legacy behavior coverage
 
-The pre-existing users, clients, access-requests, and grants implementation is
-still colocated in `AdminPage.tsx`. It was not replaced with empty wrappers or
-a behavior-reducing rewrite. Completing the four legacy panel extractions while
-preserving their existing CRUD/modal behavior remains required for the full
-Task 7 file-boundary acceptance criterion.
+RTL interaction tests cover user activation PATCH, grant revocation plus page
+refresh, normalized client creation, and access-request rejection. Existing API
+paths and mutation payloads remain colocated with their owning panels.
