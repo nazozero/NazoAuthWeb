@@ -12,7 +12,7 @@ export interface RuntimeModuleStatus {
   applied_revision: number | null;
   dependencies: string[];
   dependents: string[];
-  allowed_actions: RuntimeDesiredMode[];
+  allowed_actions: string[];
   disable_policy: string;
   drain_deadline: string | null;
   failure_code: string | null;

@@ -24,6 +24,10 @@ function initialDraft(module: RuntimeModuleStatus): ModuleDraft {
   return { desiredState: module.desired_state, reason: '', cascade: false };
 }
 
+function actionForMode(mode: RuntimeDesiredMode): string {
+  return mode === 'enabled' ? 'enable' : mode === 'disabled' ? 'disable' : 'inherit';
+}
+
 function formatTimestamp(value: string | null): string {
   if (!value) {
     return '—';
@@ -68,6 +72,7 @@ export default function RuntimeModulesPanel() {
   const [mfaModuleId, setMfaModuleId] = useState<string | null>(null);
   const [mfaCode, setMfaCode] = useState('');
   const [verifyingMfa, setVerifyingMfa] = useState(false);
+  const [pageVisible, setPageVisible] = useState(() => !document.hidden);
   const pollAttemptRef = useRef(0);
 
   const loadModules = useCallback(async () => {
@@ -101,6 +106,12 @@ export default function RuntimeModulesPanel() {
   }, []);
 
   useEffect(() => {
+    const onVisibilityChange = () => setPageVisible(!document.hidden);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, []);
+
+  useEffect(() => {
     let active = true;
     void Promise.all([loadModules(), loadEvents()])
       .catch((caught: unknown) => {
@@ -126,7 +137,7 @@ export default function RuntimeModulesPanel() {
   );
 
   useEffect(() => {
-    if (!shouldPoll || document.hidden) {
+    if (!shouldPoll || !pageVisible) {
       pollAttemptRef.current = 0;
       return;
     }
@@ -138,7 +149,7 @@ export default function RuntimeModulesPanel() {
       });
     }, delay);
     return () => window.clearTimeout(timer);
-  }, [loadEvents, loadModules, pending, shouldPoll]);
+  }, [loadEvents, loadModules, pageVisible, pending, shouldPoll]);
 
   const updateDraft = (module: RuntimeModuleStatus, patch: Partial<ModuleDraft>) => {
     setDrafts((current) => ({
@@ -258,7 +269,18 @@ export default function RuntimeModulesPanel() {
                   value={draft.desiredState}
                   onChange={(event) => updateDraft(module, { desiredState: event.target.value as RuntimeDesiredMode })}
                 >
-                  {DESIRED_MODES.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
+                  {DESIRED_MODES.map((mode) => (
+                    <option
+                      key={mode}
+                      value={mode}
+                      disabled={
+                        mode !== module.desired_state &&
+                        !module.allowed_actions.includes(actionForMode(mode))
+                      }
+                    >
+                      {mode}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label>
