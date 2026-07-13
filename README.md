@@ -28,8 +28,8 @@ VITE_API_BASE_URL=https://auth.nazo.run npm run dev
 npm run test
 ```
 
-`npm run test` runs the delivery contract, ESLint, Vitest component tests, and
-the production TypeScript/Vite build. `npm run audit` fails on any published
+`npm run test` runs the delivery contract, ESLint, Vitest component tests, the
+production TypeScript/Vite build, and a deployable-asset path check. `npm run audit` fails on any published
 advisory at low severity or higher. GitHub Actions runs both commands for every
 frontend-affecting pull request, while Dependabot checks npm and Actions weekly.
 
@@ -58,7 +58,11 @@ confidential client secret.
 
 ## Deployment
 
-Build output is written to `dist/`.
+Build output is written to `dist/`. Production builds default to the canonical
+`/ui/` base path, so a plain `npm run build` emits asset URLs that Angie can
+serve below `https://auth.nazo.run/ui/`. Set `VITE_BASE_PATH` only when deploying
+the same application at a different mount point; the development server remains
+root-mounted by default.
 
 For `auth.nazo.run/ui/`, deploy the contents of `dist/` to the static site root and make sure the reverse proxy either:
 

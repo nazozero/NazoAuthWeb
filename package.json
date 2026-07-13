@@ -18,7 +18,8 @@
     "security:test": "node --test scripts/check-browser-security.test.mjs",
     "security:source": "node scripts/check-browser-security.mjs source",
     "security:dist": "node scripts/check-browser-security.mjs dist",
-    "test": "npm run audit && npm run test:delivery && npm run lint && npm run test:unit && npm run security:test && npm run security:source && npm run build && npm run security:dist",
+    "verify:dist": "node scripts/check-production-build.mjs",
+    "test": "npm run audit && npm run test:delivery && npm run lint && npm run test:unit && npm run security:test && npm run security:source && npm run build && npm run verify:dist && npm run security:dist",
     "preview": "vite preview"
   },
   "dependencies": {
