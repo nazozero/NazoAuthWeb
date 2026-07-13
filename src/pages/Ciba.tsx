@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { buildAuthRedirectWithNext, buildCurrentPath } from '../auth/next';
+import { useI18n } from '../i18n';
 import { ApiError, apiFetch } from '../lib/api';
 import {
   contentSwitchVariants,
@@ -22,16 +23,16 @@ import {
 import type { CibaVerificationView } from '../types/auth';
 import './Ciba.css';
 
-function resolveErrorMessage(error: unknown): string {
+function resolveErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) {
     return error.message;
   }
-  return 'Could not load the backchannel authorization request.';
+  return fallback;
 }
 
-function formatDateTime(value?: string): string {
+function formatDateTime(value: string | undefined, unknownLabel: string): string {
   if (!value) {
-    return 'Unknown';
+    return unknownLabel;
   }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -45,6 +46,7 @@ function formatDateTime(value?: string): string {
 
 export default function Ciba() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const { authReqId = '' } = useParams();
   const [view, setView] = useState<CibaVerificationView | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,7 +70,7 @@ export default function Ciba() {
         }
         setView(payload);
         if (!payload.request) {
-          setErrorMsg('The request is expired, invalid, or already handled.');
+          setErrorMsg(t('ciba.error.invalid'));
         }
       } catch (error) {
         if (!active) {
@@ -81,7 +83,7 @@ export default function Ciba() {
           return;
         }
         setView(null);
-        setErrorMsg(resolveErrorMessage(error));
+        setErrorMsg(resolveErrorMessage(error, t('ciba.error.load')));
       } finally {
         if (active) {
           setLoading(false);
@@ -93,7 +95,7 @@ export default function Ciba() {
     return () => {
       active = false;
     };
-  }, [authReqId, navigate]);
+  }, [authReqId, navigate, t]);
 
   const request = view?.request ?? null;
   const scopes = request?.scopes ?? [];
@@ -101,7 +103,7 @@ export default function Ciba() {
 
   const submitDecision = async (decision: 'approve' | 'deny') => {
     if (!view?.auth_req_id) {
-      setErrorMsg('The request is unavailable.');
+      setErrorMsg(t('ciba.error.unavailable'));
       return;
     }
 
@@ -124,12 +126,41 @@ export default function Ciba() {
       );
       setResultMsg(
         decision === 'approve'
-          ? 'Backchannel authorization approved.'
-          : 'Backchannel authorization denied.'
+          ? t('ciba.success.approved')
+          : t('ciba.success.denied')
       );
       setView((current) => (current ? { ...current, request: null } : current));
     } catch (error) {
-      setErrorMsg(resolveErrorMessage(error));
+      if (error instanceof ApiError) {
+        if (error.status === 401) {
+          navigate(buildAuthRedirectWithNext(buildCurrentPath(window.location)), {
+            replace: true,
+          });
+          return;
+        }
+        setErrorMsg(error.message || t('ciba.error.decision'));
+        return;
+      }
+
+      try {
+        const latest = await apiFetch<CibaVerificationView>(
+          `/auth/ciba/${encodeURIComponent(view.auth_req_id)}`
+        );
+        setView(latest);
+        setErrorMsg(
+          latest.request
+            ? t('ciba.warning.statusReloaded')
+            : t('ciba.warning.mayBeProcessed')
+        );
+      } catch (reloadError) {
+        if (reloadError instanceof ApiError && reloadError.status === 401) {
+          navigate(buildAuthRedirectWithNext(buildCurrentPath(window.location)), {
+            replace: true,
+          });
+          return;
+        }
+        setErrorMsg(t('ciba.warning.statusUnknown'));
+      }
     } finally {
       setSubmitting(null);
     }
@@ -150,8 +181,8 @@ export default function Ciba() {
               <Smartphone size={20} />
             </span>
             <div>
-              <h1>Authorize sign-in</h1>
-              <p>Review the backchannel request before granting access.</p>
+              <h1>{t('ciba.title')}</h1>
+              <p>{t('ciba.subtitle')}</p>
             </div>
           </header>
 
@@ -165,7 +196,7 @@ export default function Ciba() {
                 animate="animate"
                 exit="exit"
               >
-                Loading authorization request...
+                {t('ciba.loading')}
               </motion.div>
             )}
 
@@ -210,24 +241,24 @@ export default function Ciba() {
                 <section className="ciba-client-box">
                   <div className="ciba-block-title">
                     <ShieldCheck size={16} />
-                    <span>Requesting client</span>
+                    <span>{t('ciba.requestingClient')}</span>
                   </div>
                   <div className="ciba-client-grid">
                     <div>
-                      <span>Application</span>
+                      <span>{t('ciba.application')}</span>
                       <strong>{request.client_name}</strong>
                     </div>
                     <div>
-                      <span>Client ID</span>
+                      <span>{t('ciba.clientId')}</span>
                       <strong>{request.client_id}</strong>
                     </div>
                     <div>
-                      <span>Issued</span>
-                      <strong>{formatDateTime(request.issued_at)}</strong>
+                      <span>{t('ciba.issued')}</span>
+                      <strong>{formatDateTime(request.issued_at, t('ciba.unknown'))}</strong>
                     </div>
                     <div>
-                      <span>Expires</span>
-                      <strong>{formatDateTime(request.expires_at)}</strong>
+                      <span>{t('ciba.expires')}</span>
+                      <strong>{formatDateTime(request.expires_at, t('ciba.unknown'))}</strong>
                     </div>
                   </div>
                 </section>
@@ -236,7 +267,7 @@ export default function Ciba() {
                   <section className="ciba-message-box">
                     <div className="ciba-block-title">
                       <MessageSquareText size={16} />
-                      <span>Binding message</span>
+                      <span>{t('ciba.bindingMessage')}</span>
                     </div>
                     <p>{request.binding_message}</p>
                   </section>
@@ -245,7 +276,7 @@ export default function Ciba() {
                 <section className="ciba-scope-box">
                   <div className="ciba-block-title">
                     <LockKeyhole size={16} />
-                    <span>Requested permissions</span>
+                    <span>{t('ciba.permissions')}</span>
                   </div>
                   <motion.ul
                     className="ciba-chip-list"
@@ -254,7 +285,7 @@ export default function Ciba() {
                     animate="animate"
                     layout
                   >
-                    {(scopes.length ? scopes : ['No scopes requested']).map((scope) => (
+                    {(scopes.length ? scopes : [t('ciba.noScopes')]).map((scope) => (
                       <motion.li key={scope} variants={revealItemVariants} layout>
                         {scope}
                       </motion.li>
@@ -265,7 +296,7 @@ export default function Ciba() {
                 <section className="ciba-scope-box">
                   <div className="ciba-block-title">
                     <Clock3 size={16} />
-                    <span>Resources</span>
+                    <span>{t('ciba.resources')}</span>
                   </div>
                   <motion.ul
                     className="ciba-chip-list resource"
@@ -274,7 +305,7 @@ export default function Ciba() {
                     animate="animate"
                     layout
                   >
-                    {(audiences.length ? audiences : ['Default resource']).map((audience) => (
+                    {(audiences.length ? audiences : [t('ciba.defaultResource')]).map((audience) => (
                       <motion.li key={audience} variants={revealItemVariants} layout>
                         {audience}
                       </motion.li>
@@ -291,7 +322,7 @@ export default function Ciba() {
                     onClick={() => void submitDecision('deny')}
                   >
                     <CircleSlash size={16} />
-                    <span>{submitting === 'deny' ? 'Denying' : 'Deny'}</span>
+                    <span>{submitting === 'deny' ? t('ciba.denying') : t('ciba.deny')}</span>
                   </button>
                   <button
                     id="nazo-ciba-approve"
@@ -301,7 +332,9 @@ export default function Ciba() {
                     onClick={() => void submitDecision('approve')}
                   >
                     <ShieldCheck size={16} />
-                    <span>{submitting === 'approve' ? 'Approving' : 'Approve'}</span>
+                    <span>
+                      {submitting === 'approve' ? t('ciba.approving') : t('ciba.approve')}
+                    </span>
                   </button>
                 </div>
               </motion.div>
@@ -310,7 +343,7 @@ export default function Ciba() {
         </motion.section>
 
         <div className="ciba-powered">
-          <span>Secured by NazoAuth</span>
+          <span>{t('ciba.securedBy')}</span>
         </div>
       </div>
     </motion.div>

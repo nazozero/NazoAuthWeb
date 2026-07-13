@@ -33,6 +33,29 @@ the production TypeScript/Vite build. `npm run audit` fails on any published
 advisory at low severity or higher. GitHub Actions runs both commands for every
 frontend-affecting pull request, while Dependabot checks npm and Actions weekly.
 
+## Browser Security Boundary
+
+NazoAuthWeb is a same-origin first-party session application. It uses secure
+server-managed cookies; unsafe authenticated `/auth/me/*` operations are
+CSRF-protected. Login and other unauthenticated `/auth/*` entry points use their
+own endpoint controls. NazoAuthWeb does not act as an OAuth public SPA and does
+not store access tokens, refresh tokens, ID Tokens, client secrets, private
+keys, OIDF credentials, or PKCE verifiers in browser storage.
+
+The only approved durable browser values are the locale preference and a
+non-authoritative boolean session hint. The backend always verifies the real
+session. `npm test` enforces exact source-level persistence calls and scans the
+production build for high-confidence credential artifacts including private
+keys, JWTs, bearer values, OAuth/OIDF credential assignments, private JWKs, and
+test-secret markers. Static scanning cannot classify an arbitrary minified
+opaque string without a credential name or recognizable format; runtime
+authorization and secret isolation remain server-side controls.
+
+Third-party browser applications are separate OAuth public clients. They use
+NazoAuth `/authorize` and `/token` with Authorization Code, exact redirect URIs,
+and S256 PKCE. A string embedded in browser JavaScript cannot be treated as a
+confidential client secret.
+
 ## Deployment
 
 Build output is written to `dist/`.
