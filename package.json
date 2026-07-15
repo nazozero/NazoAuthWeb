@@ -7,10 +7,11 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "unit:test": "node --test tests/*.test.ts",
     "security:test": "node --test scripts/check-browser-security.test.mjs",
     "security:source": "node scripts/check-browser-security.mjs source",
     "security:dist": "node scripts/check-browser-security.mjs dist",
-    "test": "npm run lint && npm run security:test && npm run security:source && npm run build && npm run security:dist",
+    "test": "npm run lint && npm run unit:test && npm run security:test && npm run security:source && npm run build && npm run security:dist",
     "preview": "vite preview"
   },
   "dependencies": {

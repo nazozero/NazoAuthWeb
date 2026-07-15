@@ -3836,6 +3836,56 @@ textarea:focus,
   line-height: 1.58;
 }
 
+.auth-client-presentation {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 10px;
+  background: rgba(7, 11, 16, 0.58);
+}
+
+.auth-client-logo {
+  flex: 0 0 auto;
+  width: 46px;
+  height: 46px;
+  border-radius: 8px;
+  object-fit: contain;
+  background: #fff;
+}
+
+.auth-client-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.auth-client-copy > span {
+  color: var(--quiet);
+  font-size: 0.75rem;
+}
+
+.auth-client-copy > strong {
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.auth-client-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 3px;
+}
+
+.auth-client-links a {
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
 .auth-form-wrapper {
   min-height: 0;
 }

@@ -3,6 +3,11 @@ import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { Mail, Lock, Shield, ArrowRight, Fingerprint } from 'lucide-react';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  clientIdFromAuthorizationNext,
+  normalizeClientPresentation,
+  type ClientPresentation,
+} from '../auth/clientPresentation';
 import { resolveSafeNextFromSearch } from '../auth/next';
 import { useAuth } from '../auth/useAuth';
 import CaptchaModal from '../components/CaptchaModal';
@@ -51,8 +56,14 @@ export default function Auth() {
     () => resolveSafeNextFromSearch(location.search),
     [location.search]
   );
+  const authorizationClientId = useMemo(
+    () => clientIdFromAuthorizationNext(nextAfterLogin),
+    [nextAfterLogin]
+  );
 
   const [authState, setAuthState] = useState<AuthState>('login');
+  const [clientPresentation, setClientPresentation] = useState<ClientPresentation | null>(null);
+  const [clientLogoFailed, setClientLogoFailed] = useState(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -102,6 +113,32 @@ export default function Auth() {
       }
     });
   };
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setClientPresentation(null);
+    setClientLogoFailed(false);
+    if (!authorizationClientId) {
+      return () => controller.abort();
+    }
+    const loadClientPresentation = async () => {
+      try {
+        const value = await apiFetch<unknown>(
+          `/authorize/client-presentation?client_id=${encodeURIComponent(authorizationClientId)}`,
+          { signal: controller.signal }
+        );
+        if (!controller.signal.aborted) {
+          setClientPresentation(normalizeClientPresentation(value));
+        }
+      } catch {
+        if (!controller.signal.aborted) {
+          setClientPresentation(null);
+        }
+      }
+    };
+    void loadClientPresentation();
+    return () => controller.abort();
+  }, [authorizationClientId]);
 
   useEffect(() => {
     let active = true;
@@ -375,6 +412,48 @@ export default function Auth() {
                 {authState === 'register' && t('auth.subtitle.register')}
                 {authState === 'forgot' && t('auth.subtitle.forgot')}
               </p>
+              {authState === 'login' && clientPresentation && (
+                <section className="auth-client-presentation" aria-label={t('auth.client.label')}>
+                  {clientPresentation.logo_uri && !clientLogoFailed && (
+                    <img
+                      src={clientPresentation.logo_uri}
+                      alt=""
+                      className="auth-client-logo"
+                      referrerPolicy="no-referrer"
+                      decoding="async"
+                      onError={() => setClientLogoFailed(true)}
+                    />
+                  )}
+                  <div className="auth-client-copy">
+                    <span>{t('auth.client.continueTo')}</span>
+                    <strong>{clientPresentation.client_name}</strong>
+                    {(clientPresentation.policy_uri || clientPresentation.tos_uri) && (
+                      <div className="auth-client-links">
+                        {clientPresentation.policy_uri && (
+                          <a
+                            href={clientPresentation.policy_uri}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            referrerPolicy="no-referrer"
+                          >
+                            {t('auth.client.policy')}
+                          </a>
+                        )}
+                        {clientPresentation.tos_uri && (
+                          <a
+                            href={clientPresentation.tos_uri}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            referrerPolicy="no-referrer"
+                          >
+                            {t('auth.client.terms')}
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
             </div>
 
             <AnimatePresence>
