@@ -4,7 +4,7 @@ const inferredBaseUrl = import.meta.env.DEV
   ? 'http://127.0.0.1:8000'
   : typeof window !== 'undefined'
     ? window.location.origin
-    : 'https://auth.nazo.run';
+    : 'https://issuer.example';
 
 export const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL || inferredBaseUrl
