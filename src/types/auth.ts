@@ -47,6 +47,7 @@ export interface ClientAccessRequestItem {
   status: ClientAccessRequestStatus;
   admin_note?: string | null;
   approved_client_id?: string | null;
+  delivery_available?: boolean;
   created_at: string;
   resolved_at?: string | null;
 }

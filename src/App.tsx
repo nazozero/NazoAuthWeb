@@ -20,7 +20,6 @@ const Consent = lazy(() => import('./pages/Consent'));
 const Device = lazy(() => import('./pages/Device'));
 const Ciba = lazy(() => import('./pages/Ciba'));
 const Admin = lazy(() => import('./pages/Admin'));
-const Delivery = lazy(() => import('./pages/Delivery'));
 
 function RouteLoadingFallback() {
   const { t } = useI18n();
@@ -90,7 +89,6 @@ function MainRoutes() {
               </RequireAuth>
             }
           />
-          <Route path="/delivery" element={<Delivery />} />
         </Routes>
       </Suspense>
     </AnimatePresence>
@@ -102,8 +100,7 @@ function AppShell() {
   const isIsolatedPage =
     location.pathname === '/consent' ||
     location.pathname === '/device' ||
-    location.pathname.startsWith('/ciba/') ||
-    location.pathname === '/delivery';
+    location.pathname.startsWith('/ciba/');
 
   return (
     <div className="app-layout">
