@@ -69,3 +69,8 @@ For `issuer.example/ui/`, deploy the contents of `dist/` to the static site root
 - `/admin` administrator work surface
 - `/docs` integration notes
 - `/contact` support information
+
+## License
+
+NazoAuth Web is licensed under the
+[GNU Affero General Public License, version 3 or later](LICENSE).
