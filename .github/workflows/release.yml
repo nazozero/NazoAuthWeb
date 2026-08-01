@@ -1,0 +1,67 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+  artifact-metadata: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Validate immutable release identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]
+          test "${GITHUB_REF_NAME#v}" = "$(node -p 'require("./package.json").version')"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Build and test production UI
+        run: |
+          set -euo pipefail
+          npm ci
+          npm test
+      - name: Build deterministic UI archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          if find dist -type l -print -quit | grep -q .; then
+            echo "dist must not contain symbolic links" >&2
+            exit 1
+          fi
+          test -f dist/index.html
+          tar --sort=name \
+            --mtime='UTC 1970-01-01' \
+            --owner=0 --group=0 --numeric-owner \
+            --format=posix \
+            --use-compress-program='gzip -n' \
+            -cf nazoauth-web.tar.gz \
+            -C dist .
+          test "$(stat -c %s nazoauth-web.tar.gz)" -le 67108864
+      - name: Attest UI archive provenance
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        with:
+          subject-path: nazoauth-web.tar.gz
+      - name: Publish the single UI release artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 ||
+            gh release create "$GITHUB_REF_NAME" \
+              --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes
+          gh release upload "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            nazoauth-web.tar.gz
