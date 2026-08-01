@@ -4,20 +4,14 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useI18n } from '../i18n';
 import {
-  clearInitialAdminToken,
-  peekInitialAdminToken,
+  acceptInitialAdminClaim,
+  normalizeInitialAdminEmail,
+  peekInitialAdminBootstrap,
   validInitialAdminPassword,
 } from '../auth/bootstrap';
 import { ApiError, apiFetch } from '../lib/api';
 import { alertVariants, pageVariants } from '../lib/motion';
 import './Setup.css';
-
-type BootstrapClaim = {
-  id: string;
-  email: string;
-  role: 'admin';
-  next: string;
-};
 
 function isExpiredBootstrapClaim(error: unknown): boolean {
   return error instanceof ApiError && (error.status === 404 || error.status === 410);
@@ -25,7 +19,7 @@ function isExpiredBootstrapClaim(error: unknown): boolean {
 
 export default function Setup() {
   const { t } = useI18n();
-  const [token, setToken] = useState<string | null>(peekInitialAdminToken);
+  const [bootstrap, setBootstrap] = useState(peekInitialAdminBootstrap);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -35,11 +29,11 @@ export default function Setup() {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setError('');
-    if (!token) {
+    if (!bootstrap) {
       setError(t('setup.error.invalidLink'));
       return;
     }
-    const normalizedEmail = email.trim();
+    const normalizedEmail = normalizeInitialAdminEmail(email);
     if (!normalizedEmail || !validInitialAdminPassword(password)) {
       setError(t('setup.error.required'));
       return;
@@ -47,14 +41,22 @@ export default function Setup() {
 
     setSubmitting(true);
     try {
-      await apiFetch<BootstrapClaim>('/auth/bootstrap-admin', {
+      const claim = await apiFetch<unknown>('/auth/bootstrap-admin', {
         method: 'POST',
         csrf: 'defer',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, email: normalizedEmail, password }),
+        body: JSON.stringify({
+          request_id: bootstrap.requestId,
+          token: bootstrap.token,
+          email: normalizedEmail,
+          password,
+        }),
       });
-      clearInitialAdminToken();
-      setToken(null);
+      if (!acceptInitialAdminClaim(claim, normalizedEmail)) {
+        setError(t('setup.error.failed'));
+        return;
+      }
+      setBootstrap(null);
       setPassword('');
       setCreated(true);
     } catch (claimError) {
@@ -135,10 +137,10 @@ export default function Setup() {
                 />
               </div>
             </label>
-            <button className="btn-primary setup-submit" type="submit" disabled={submitting || !token}>
+            <button className="btn-primary setup-submit" type="submit" disabled={submitting || !bootstrap}>
               {submitting ? t('setup.submitting') : t('setup.submit')}
             </button>
-            {!token && <p className="setup-hint">{t('setup.error.invalidLink')}</p>}
+            {!bootstrap && <p className="setup-hint">{t('setup.error.invalidLink')}</p>}
           </form>
         )}
       </div>
