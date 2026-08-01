@@ -12,6 +12,7 @@ import './App.css';
 
 const Home = lazy(() => import('./pages/Home'));
 const Auth = lazy(() => import('./pages/Auth'));
+const Setup = lazy(() => import('./pages/Setup'));
 const Security = lazy(() => import('./pages/Security'));
 const Docs = lazy(() => import('./pages/Docs'));
 const Contact = lazy(() => import('./pages/Contact'));
@@ -63,6 +64,7 @@ function MainRoutes() {
               </RequireAuth>
             }
           />
+          <Route path="/setup" element={<Setup />} />
           <Route
             path="/ciba/:authReqId"
             element={
@@ -99,6 +101,7 @@ function AppShell() {
   const location = useLocation();
   const isIsolatedPage =
     location.pathname === '/consent' ||
+    location.pathname === '/setup' ||
     location.pathname === '/device' ||
     location.pathname.startsWith('/ciba/');
 
