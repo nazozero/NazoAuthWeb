@@ -117,16 +117,21 @@
             return;
           }
 
-          fetch('/authorize/consent?request_id=' + encodeURIComponent(requestId), {
-            method: 'GET',
-            credentials: 'include',
-            headers: { Accept: 'application/json' }
-          })
-            .then(function (response) {
-              if (!response.ok) throw new Error('consent request failed');
-              return response.json();
-            })
-            .then(function (payload) {
+          var consentRequest = new XMLHttpRequest();
+          consentRequest.open(
+            'GET',
+            '/authorize/consent?request_id=' + encodeURIComponent(requestId),
+            true
+          );
+          consentRequest.withCredentials = true;
+          consentRequest.setRequestHeader('Accept', 'application/json');
+          consentRequest.onreadystatechange = function () {
+            if (consentRequest.readyState !== 4) return;
+            try {
+              if (consentRequest.status < 200 || consentRequest.status >= 300) {
+                throw new Error('consent request failed');
+              }
+              var payload = JSON.parse(consentRequest.responseText);
               var csrfToken =
                 payload && typeof payload.csrf_token === 'string'
                   ? payload.csrf_token.trim()
@@ -142,11 +147,16 @@
               consentForm.hidden = false;
               consentForm.style.display = '';
               consentStatus.hidden = true;
-            })
-            .catch(function () {
+            } catch (error) {
               consentStatus.textContent =
                 'Could not load the authorization request. Start the flow again.';
-            });
+            }
+          };
+          consentRequest.onerror = function () {
+            consentStatus.textContent =
+              'Could not load the authorization request. Start the flow again.';
+          };
+          consentRequest.send();
           return;
         }
 

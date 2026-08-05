@@ -11,14 +11,6 @@ const consentFallbackMarkup = indexHtml.match(
   /<div id="consent-fallback"[\s\S]*?<script>/
 )?.[0];
 
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((resolvePromise) => {
-    resolve = resolvePromise;
-  });
-  return { promise, resolve };
-}
-
 function createElement(initial: Record<string, unknown> = {}) {
   return {
     disabled: false,
@@ -34,9 +26,7 @@ function createElement(initial: Record<string, unknown> = {}) {
   };
 }
 
-function runConsentFallback(
-  responsePromise: Promise<{ ok: boolean; json(): Promise<unknown> }>
-) {
+function runConsentFallback() {
   assert.ok(inlineScript, 'the classic fallback script must remain in the build entry');
 
   const form = createElement({ hidden: true, style: { display: 'none' } });
@@ -51,7 +41,44 @@ function runConsentFallback(
     'nazo-consent-deny': createElement({ disabled: true }),
     'nazo-consent-approve': createElement({ disabled: true }),
   };
-  const requests: Array<{ url: string; init: RequestInit }> = [];
+  const requests: Array<{
+    method?: string;
+    url?: string;
+    async?: boolean;
+    withCredentials: boolean;
+    headers: Record<string, string>;
+    readyState: number;
+    status: number;
+    responseText: string;
+    onreadystatechange?: () => void;
+    onerror?: () => void;
+  }> = [];
+  class XMLHttpRequest {
+    method?: string;
+    url?: string;
+    async?: boolean;
+    withCredentials = false;
+    headers: Record<string, string> = {};
+    readyState = 0;
+    status = 0;
+    responseText = '';
+    onreadystatechange?: () => void;
+    onerror?: () => void;
+
+    open(method: string, url: string, async: boolean) {
+      this.method = method;
+      this.url = url;
+      this.async = async;
+    }
+
+    setRequestHeader(name: string, value: string) {
+      this.headers[name] = value;
+    }
+
+    send() {
+      requests.push(this);
+    }
+  }
   const document = {
     documentElement: { className: '' },
     getElementById(id: keyof typeof elements) {
@@ -64,10 +91,8 @@ function runConsentFallback(
     URLSearchParams,
     document,
     encodeURIComponent,
-    fetch(url: string, init: RequestInit) {
-      requests.push({ url, init });
-      return responsePromise;
-    },
+    JSON,
+    XMLHttpRequest,
     window: {
       location: {
         origin: 'https://issuer.example',
@@ -80,7 +105,7 @@ function runConsentFallback(
   return { elements, form, requests };
 }
 
-test('build entry keeps consent actions unavailable until authoritative view data arrives', async () => {
+test('build entry keeps consent actions unavailable until authoritative view data arrives', () => {
   assert.ok(consentFallbackMarkup);
   assert.match(
     consentFallbackMarkup,
@@ -99,30 +124,28 @@ test('build entry keeps consent actions unavailable until authoritative view dat
     'the fail-closed fallback must execute before the React module entry'
   );
 
-  const response = deferred<{ ok: boolean; json(): Promise<unknown> }>();
-  const fallback = runConsentFallback(response.promise);
+  const fallback = runConsentFallback();
 
   assert.equal(fallback.requests.length, 1);
   assert.equal(fallback.requests[0]?.url, '/authorize/consent?request_id=req-123');
-  assert.equal(fallback.requests[0]?.init.method, 'GET');
-  assert.equal(fallback.requests[0]?.init.credentials, 'include');
-  assert.equal(
-    (fallback.requests[0]?.init.headers as Record<string, string>).Accept,
-    'application/json'
-  );
+  assert.equal(fallback.requests[0]?.method, 'GET');
+  assert.equal(fallback.requests[0]?.async, true);
+  assert.equal(fallback.requests[0]?.withCredentials, true);
+  assert.equal(fallback.requests[0]?.headers.Accept, 'application/json');
   assert.equal(fallback.form.hidden, true);
   assert.equal(fallback.form.style.display, 'none');
   assert.equal(fallback.elements['nazo-consent-deny'].disabled, true);
   assert.equal(fallback.elements['nazo-consent-approve'].disabled, true);
 
-  response.resolve({
-    ok: true,
-    async json() {
-      return { request_id: 'req-123', csrf_token: 'response-csrf-token' };
-    },
+  const request = fallback.requests[0];
+  assert.ok(request);
+  request.status = 200;
+  request.responseText = JSON.stringify({
+    request_id: 'req-123',
+    csrf_token: 'response-csrf-token',
   });
-  await response.promise;
-  await new Promise((resolve) => setImmediate(resolve));
+  request.readyState = 4;
+  request.onreadystatechange?.();
 
   assert.equal(fallback.elements['consent-fallback-request-id'].value, 'req-123');
   assert.equal(
@@ -135,16 +158,14 @@ test('build entry keeps consent actions unavailable until authoritative view dat
   assert.equal(fallback.form.style.display, '');
 });
 
-test('static consent fallback fails closed on an unusable consent response', async () => {
-  const fallback = runConsentFallback(
-    Promise.resolve({
-      ok: true,
-      async json() {
-        return { request_id: 'req-123', csrf_token: '' };
-      },
-    })
-  );
-  await new Promise((resolve) => setImmediate(resolve));
+test('static consent fallback fails closed on an unusable consent response', () => {
+  const fallback = runConsentFallback();
+  const request = fallback.requests[0];
+  assert.ok(request);
+  request.status = 200;
+  request.responseText = JSON.stringify({ request_id: 'req-123', csrf_token: '' });
+  request.readyState = 4;
+  request.onreadystatechange?.();
 
   assert.equal(fallback.form.hidden, true);
   assert.equal(fallback.elements['nazo-consent-deny'].disabled, true);
