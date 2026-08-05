@@ -56,29 +56,28 @@
         <img src="%BASE_URL%icons/site-icon-64x64.png" alt="NazoAuth" />
         <p class="consent-fallback-kicker">NazoAuth authorization</p>
         <h1 id="consent-fallback-title">Review authorization</h1>
-        <p class="consent-fallback-copy">Approve this client to continue the authorization flow.</p>
-        <form method="post" action="/authorize/decision" class="consent-fallback-form">
+        <p
+          id="consent-fallback-status"
+          class="consent-fallback-copy"
+          role="status"
+          aria-live="polite"
+        >Loading authorization request...</p>
+        <form
+          method="post"
+          action="/authorize/decision"
+          class="consent-fallback-form"
+          hidden
+          style="display: none"
+        >
           <input id="consent-fallback-request-id" name="request_id" type="hidden" value="" />
           <input id="consent-fallback-csrf-token" name="csrf_token" type="hidden" value="" />
-          <button id="nazo-consent-deny" type="submit" name="decision" value="deny">Deny</button>
-          <button id="nazo-consent-approve" type="submit" name="decision" value="approve">Approve and continue</button>
+          <button id="nazo-consent-deny" type="submit" name="decision" value="deny" disabled>Deny</button>
+          <button id="nazo-consent-approve" type="submit" name="decision" value="approve" disabled>Approve and continue</button>
         </form>
       </main>
     </div>
     <script>
       (function () {
-        function readCookie(name) {
-          var prefix = encodeURIComponent(name) + '=';
-          var parts = document.cookie ? document.cookie.split(';') : [];
-          for (var i = 0; i < parts.length; i += 1) {
-            var item = parts[i].trim();
-            if (item.indexOf(prefix) === 0) {
-              return decodeURIComponent(item.slice(prefix.length));
-            }
-          }
-          return '';
-        }
-
         var path = window.location.pathname.replace(/\/+$/, '');
         var authPath = '%BASE_URL%auth'.replace(/\/+$/, '');
         var consentPath = '%BASE_URL%consent'.replace(/\/+$/, '');
@@ -105,10 +104,49 @@
         if (path === consentPath && consentFallback) {
           if (authFallback) authFallback.remove();
           document.documentElement.className += ' consent-fallback-active';
-          document.getElementById('consent-fallback-request-id').value =
-            new URLSearchParams(window.location.search).get('request_id') || '';
-          document.getElementById('consent-fallback-csrf-token').value =
-            readCookie('nazo_oauth_csrf');
+          var requestId = (new URLSearchParams(window.location.search).get('request_id') || '').trim();
+          var consentForm = consentFallback.querySelector('form');
+          var consentStatus = document.getElementById('consent-fallback-status');
+          var requestIdInput = document.getElementById('consent-fallback-request-id');
+          var csrfTokenInput = document.getElementById('consent-fallback-csrf-token');
+          var denyButton = document.getElementById('nazo-consent-deny');
+          var approveButton = document.getElementById('nazo-consent-approve');
+
+          if (!requestId) {
+            consentStatus.textContent = 'Missing request_id. Start the authorization flow again.';
+            return;
+          }
+
+          fetch('/authorize/consent?request_id=' + encodeURIComponent(requestId), {
+            method: 'GET',
+            credentials: 'include',
+            headers: { Accept: 'application/json' }
+          })
+            .then(function (response) {
+              if (!response.ok) throw new Error('consent request failed');
+              return response.json();
+            })
+            .then(function (payload) {
+              var csrfToken =
+                payload && typeof payload.csrf_token === 'string'
+                  ? payload.csrf_token.trim()
+                  : '';
+              if (!payload || payload.request_id !== requestId || !csrfToken) {
+                throw new Error('invalid consent response');
+              }
+
+              requestIdInput.value = requestId;
+              csrfTokenInput.value = csrfToken;
+              denyButton.disabled = false;
+              approveButton.disabled = false;
+              consentForm.hidden = false;
+              consentForm.style.display = '';
+              consentStatus.hidden = true;
+            })
+            .catch(function () {
+              consentStatus.textContent =
+                'Could not load the authorization request. Start the flow again.';
+            });
           return;
         }
 
