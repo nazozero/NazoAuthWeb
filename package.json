@@ -1,7 +1,7 @@
 {
   "name": "nazo-auth-web",
   "private": true,
-  "version": "0.2.3",
+  "version": "0.2.4",
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "packageManager": "npm@11.13.0",
@@ -13,6 +13,7 @@
     "security:test": "node --test scripts/check-browser-security.test.mjs",
     "security:source": "node scripts/check-browser-security.mjs source",
     "security:dist": "node scripts/check-browser-security.mjs dist",
+    "browser:verification:test": "node scripts/check-verification-result-browser.mjs",
     "test": "npm run lint && npm run unit:test && npm run security:test && npm run security:source && npm run build && npm run security:dist",
     "preview": "vite preview"
   },

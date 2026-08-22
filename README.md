@@ -64,6 +64,7 @@ For `issuer.example/ui/`, deploy the contents of `dist/` to the static site root
 - `/` account and authorization gateway
 - `/auth` login, registration, and account recovery entry
 - `/consent` OAuth consent screen
+- `/verification-result` isolated, short-lived OpenID4VP verification result
 - `/profile` user profile, authorized apps, and client access requests
 - `/delivery` one-time client credential delivery
 - `/admin` administrator work surface
