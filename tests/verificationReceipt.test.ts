@@ -26,8 +26,8 @@ const receiptPayload = {
     run_jti: 'run-1',
     artifact_sha256: digest,
     matrix_sha256: otherDigest,
-    suite_plan_id: '019ad2b4-4c9f-7d8e-8abc-1234567890ad',
-    suite_module_id: '019ad2b4-4c9f-7d8e-8abc-1234567890ae',
+    suite_plan_id: 'suite-plan-01',
+    suite_module_id: 'module-item-001',
     test_name: 'openid4vp-test',
     variant_sha256: digest,
   },
@@ -194,6 +194,20 @@ test('accepts only the closed verified projection and strips non-display fields'
     { ...receiptPayload, completed_at: '2026-08-22T02:00:00+00:00' },
     { ...receiptPayload, completed_at: '2026-02-30T02:00:00Z' },
     { ...receiptPayload, completed_at: '2026-08-22T24:00:00Z' },
+    {
+      ...receiptPayload,
+      evidence_context: {
+        ...receiptPayload.evidence_context,
+        suite_plan_id: 'plan/with/slash',
+      },
+    },
+    {
+      ...receiptPayload,
+      evidence_context: {
+        ...receiptPayload.evidence_context,
+        suite_module_id: 'm'.repeat(129),
+      },
+    },
   ]) {
     assert.equal(parseVerificationReceipt(invalid), null);
   }

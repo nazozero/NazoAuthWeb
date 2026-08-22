@@ -1,6 +1,7 @@
 const RECEIPT_CAPABILITY_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/;
+const FILE_IDENTIFIER_PATTERN = /^[A-Za-z0-9._:+-]{1,128}$/;
 const RFC3339_UTC_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 
 const RECEIPT_FIELDS = [
@@ -251,9 +252,9 @@ export function parseVerificationReceipt(
     typeof evidence.matrix_sha256 !== 'string' ||
     !SHA256_PATTERN.test(evidence.matrix_sha256) ||
     typeof evidence.suite_plan_id !== 'string' ||
-    !UUID_PATTERN.test(evidence.suite_plan_id) ||
+    !FILE_IDENTIFIER_PATTERN.test(evidence.suite_plan_id) ||
     typeof evidence.suite_module_id !== 'string' ||
-    !UUID_PATTERN.test(evidence.suite_module_id) ||
+    !FILE_IDENTIFIER_PATTERN.test(evidence.suite_module_id) ||
     !isNonEmptyString(evidence.test_name) ||
     typeof evidence.variant_sha256 !== 'string' ||
     !SHA256_PATTERN.test(evidence.variant_sha256)
