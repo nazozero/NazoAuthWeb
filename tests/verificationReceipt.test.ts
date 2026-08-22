@@ -165,6 +165,23 @@ test('clears an abandoned capability after a real unmount without replay', () =>
   assert.equal(memory.acquire(), null);
 });
 
+test('rotates capabilities without allowing an old lease to clear the replacement', () => {
+  const replacement = `B${'A'.repeat(42)}`;
+  const memory = createVerificationReceiptCapabilityMemory(capability);
+  const oldLease = memory.acquire();
+  assert.equal(oldLease?.capability, capability);
+
+  assert.equal(memory.replace(replacement), true);
+  oldLease?.clear();
+  oldLease?.release();
+
+  const replacementLease = memory.acquire();
+  assert.equal(replacementLease?.capability, replacement);
+  replacementLease?.clear();
+  replacementLease?.release();
+  assert.equal(memory.acquire(), null);
+});
+
 test('accepts only the closed verified projection and strips non-display fields', () => {
   assert.deepEqual(parseVerificationReceipt(receiptPayload), {
     status: 'verified',

@@ -5,6 +5,8 @@ import {
   acquireVerificationReceiptCapability,
   canonicalVerificationResultPath,
   loadVerificationReceipt,
+  subscribeVerificationReceiptCapability,
+  type VerificationReceiptCapabilityLease,
   type VerificationReceiptProjection,
 } from '../lib/verificationReceipt';
 import './VerificationResult.css';
@@ -74,45 +76,76 @@ export default function VerificationResult() {
   const [state, setState] = useState<PageState>({ kind: 'loading' });
 
   useEffect(() => {
-    const lease = acquireVerificationReceiptCapability();
-    if (!lease) {
-      setState({ kind: 'not-found' });
-      return;
-    }
+    let stopped = false;
+    let active:
+      | Readonly<{
+          controller: AbortController;
+          lease: VerificationReceiptCapabilityLease;
+        }>
+      | undefined;
 
-    const controller = new AbortController();
-    const clearOnPageHide = () => {
-      lease.clear();
-      controller.abort();
+    const stopActive = (clear: boolean) => {
+      const current = active;
+      active = undefined;
+      if (!current) {
+        return;
+      }
+      current.controller.abort();
+      if (clear) {
+        current.lease.clear();
+      }
+      current.lease.release();
     };
-    window.addEventListener('pagehide', clearOnPageHide, { once: true });
-    void loadVerificationReceipt(lease.capability, controller.signal).then((result) => {
-      if (controller.signal.aborted) {
+
+    const start = () => {
+      stopActive(false);
+      const lease = acquireVerificationReceiptCapability();
+      if (!lease) {
+        setState({ kind: 'not-found' });
         return;
       }
-      lease.clear();
-      if (result.kind !== 'verified') {
+
+      const controller = new AbortController();
+      active = { controller, lease };
+      setState({ kind: 'loading' });
+      void loadVerificationReceipt(lease.capability, controller.signal).then((result) => {
+        if (
+          stopped ||
+          controller.signal.aborted ||
+          active?.controller !== controller
+        ) {
+          return;
+        }
+        lease.clear();
+        lease.release();
+        active = undefined;
+        if (result.kind !== 'verified') {
+          setState(result);
+          return;
+        }
+        if (Date.parse(result.receipt.expiresAt) <= Date.now()) {
+          setState({ kind: 'expired' });
+          return;
+        }
         setState(result);
-        return;
-      }
-      if (Date.parse(result.receipt.expiresAt) <= Date.now()) {
-        setState({ kind: 'expired' });
-        return;
-      }
-      setState(result);
-    });
+      });
+    };
+
+    const clearOnPageHide = () => stopActive(true);
+    const unsubscribe = subscribeVerificationReceiptCapability(start);
+    window.addEventListener('pagehide', clearOnPageHide);
+    start();
+
     return () => {
+      stopped = true;
+      unsubscribe();
       window.removeEventListener('pagehide', clearOnPageHide);
-      controller.abort();
-      if (
+      stopActive(
         !canonicalVerificationResultPath(
           window.location.pathname,
           import.meta.env.BASE_URL
         )
-      ) {
-        lease.clear();
-      }
-      lease.release();
+      );
     };
   }, []);
 

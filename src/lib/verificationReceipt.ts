@@ -176,8 +176,10 @@ export function createVerificationReceiptCapabilityMemory(
       return {
         capability,
         clear(): void {
-          retainedCapability = null;
-          generation += 1;
+          if (retainedCapability === capability) {
+            retainedCapability = null;
+            generation += 1;
+          }
         },
         release(): void {
           if (released) {
@@ -197,6 +199,14 @@ export function createVerificationReceiptCapabilityMemory(
           });
         },
       };
+    },
+    replace(capability: string | null): boolean {
+      if (retainedCapability === capability) {
+        return false;
+      }
+      retainedCapability = capability;
+      generation += 1;
+      return true;
     },
   };
 }
@@ -322,17 +332,47 @@ export async function loadVerificationReceipt(
   }
 }
 
-const verificationReceiptCapabilityMemory =
-  createVerificationReceiptCapabilityMemory(
-    typeof window === 'undefined'
-      ? null
-      : consumeVerificationReceiptCapability(
-          window.location,
-          import.meta.env?.BASE_URL ?? '/',
-          (url) => window.history.replaceState(window.history.state, '', url)
-        )
+const verificationReceiptCapabilityMemory = createVerificationReceiptCapabilityMemory(
+  typeof window === 'undefined'
+    ? null
+    : consumeVerificationReceiptCapability(
+        window.location,
+        import.meta.env?.BASE_URL ?? '/',
+        (url) => window.history.replaceState(window.history.state, '', url)
+      )
+);
+const verificationReceiptCapabilityListeners = new Set<() => void>();
+
+function consumeVerificationReceiptCapabilityFromWindow(): void {
+  if (
+    typeof window === 'undefined' ||
+    (!window.location.hash && !window.location.search)
+  ) {
+    return;
+  }
+  const capability = consumeVerificationReceiptCapability(
+    window.location,
+    import.meta.env?.BASE_URL ?? '/',
+    (url) => window.history.replaceState(window.history.state, '', url)
   );
+  const changed = verificationReceiptCapabilityMemory.replace(capability);
+  if (capability === null || changed) {
+    verificationReceiptCapabilityListeners.forEach((listener) => listener());
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('hashchange', consumeVerificationReceiptCapabilityFromWindow);
+  window.addEventListener('popstate', consumeVerificationReceiptCapabilityFromWindow);
+}
 
 export function acquireVerificationReceiptCapability(): VerificationReceiptCapabilityLease | null {
   return verificationReceiptCapabilityMemory.acquire();
+}
+
+export function subscribeVerificationReceiptCapability(
+  listener: () => void
+): () => void {
+  verificationReceiptCapabilityListeners.add(listener);
+  return () => verificationReceiptCapabilityListeners.delete(listener);
 }

@@ -13,9 +13,20 @@ const distributionRoot = join(repositoryRoot, 'dist');
 const receiptPath = '/openid4vp/verification-receipts';
 const capabilityFor = (prefix) => `${prefix}${'A'.repeat(42)}`;
 const capabilities = Object.fromEntries(
-  ['success', 'trailing', 'notFound', 'unavailable', 'schema', 'media', 'expiry', 'delayed', 'rejected'].map(
-    (name, index) => [name, capabilityFor(String.fromCharCode(65 + index))]
-  )
+  [
+    'success',
+    'rotation',
+    'trailing',
+    'notFound',
+    'unavailable',
+    'schema',
+    'media',
+    'expiry',
+    'delayed',
+    'superseding',
+    'abandoned',
+    'rejected',
+  ].map((name, index) => [name, capabilityFor(String.fromCharCode(65 + index))])
 );
 
 function canonicalInstant(offsetMilliseconds) {
@@ -91,6 +102,14 @@ async function startFixtureServer() {
       const payload = receiptPayload(
         capability === capabilities.expiry ? 1_500 : 60_000
       );
+      if (capability === capabilities.rotation) {
+        payload.evidence_context.test_name = 'openid4vp-browser-contract-rotated';
+        payload.receipt_sha256 = 'e'.repeat(64);
+      }
+      if (capability === capabilities.superseding) {
+        payload.evidence_context.test_name = 'openid4vp-browser-contract-superseding';
+        payload.receipt_sha256 = 'f'.repeat(64);
+      }
       if (capability === capabilities.schema) {
         payload.schema = 2;
       }
@@ -107,7 +126,10 @@ async function startFixtureServer() {
         });
         response.end(JSON.stringify(payload));
       };
-      if (capability === capabilities.delayed) {
+      if (
+        capability === capabilities.delayed ||
+        capability === capabilities.abandoned
+      ) {
         const timer = setTimeout(send, 1_500);
         request.once('close', () => clearTimeout(timer));
       } else {
@@ -299,6 +321,167 @@ async function run() {
       if (message.sessionId === sessionId) networkRequests.push(message.params.request.url);
     });
 
+    await cdp.send(
+      'Page.navigate',
+      { url: `${fixture.origin}/ui/verification-result` },
+      sessionId
+    );
+    await waitFor(
+      cdp,
+      sessionId,
+      `document.querySelector('[data-testid="vp-verification-result"]')?.dataset.state === 'not-found'`
+    );
+    const initialDocument = await evaluate(
+      cdp,
+      sessionId,
+      `(() => {
+        window.__vpDocumentSentinel = 'canonical-document';
+        return { sentinel: window.__vpDocumentSentinel, timeOrigin: performance.timeOrigin };
+      })()`
+    );
+
+    async function navigateSameDocument(capability, expectedTestName, expectedReceiptSha256) {
+      const receiptCount = fixture.receiptRequests.length;
+      const navigation = await cdp.send(
+        'Page.navigate',
+        { url: `${fixture.origin}/ui/verification-result#receipt=${capability}` },
+        sessionId
+      );
+      assert.equal(
+        navigation.loaderId,
+        undefined,
+        'the regression navigation must remain in the existing document'
+      );
+      await waitFor(
+        cdp,
+        sessionId,
+        `document.querySelector('[data-testid="vp-verification-result"]')?.dataset.state === 'verified'`
+      );
+      assert.deepEqual(
+        await evaluate(
+          cdp,
+          sessionId,
+          `({
+            sentinel: window.__vpDocumentSentinel,
+            timeOrigin: performance.timeOrigin,
+            pathname: location.pathname,
+            search: location.search,
+            hash: location.hash,
+            testName: document.querySelector('[data-testid="vp-test-name"]')?.textContent.trim(),
+            receiptSha256: document.querySelector('[data-testid="vp-receipt-sha256"]')?.textContent.trim(),
+          })`
+        ),
+        {
+          ...initialDocument,
+          pathname: '/ui/verification-result',
+          search: '',
+          hash: '',
+          testName: expectedTestName,
+          receiptSha256: expectedReceiptSha256,
+        }
+      );
+      assert.equal(fixture.receiptRequests.length, receiptCount + 1);
+      assert.deepEqual(fixture.receiptRequests.at(-1), {
+        authorization: `Receipt ${capability}`,
+        method: 'GET',
+        pathname: receiptPath,
+      });
+    }
+
+    await navigateSameDocument(
+      capabilities.success,
+      'openid4vp-browser-contract',
+      'd'.repeat(64)
+    );
+    await navigateSameDocument(
+      capabilities.rotation,
+      'openid4vp-browser-contract-rotated',
+      'e'.repeat(64)
+    );
+    assert.equal(
+      await evaluate(
+        cdp,
+        sessionId,
+        `document.querySelector('[data-testid="vp-verification-status"]')?.textContent.trim()`
+      ),
+      'Verification successful'
+    );
+    for (const testId of [
+      'vp-test-name',
+      'vp-run-jti',
+      'vp-suite-plan-id',
+      'vp-suite-module-id',
+      'vp-artifact-sha256',
+      'vp-matrix-sha256',
+      'vp-variant-sha256',
+      'vp-receipt-sha256',
+    ]) {
+      assert.ok(
+        await evaluate(
+          cdp,
+          sessionId,
+          `(() => {
+            const element = document.querySelector('[data-testid="${testId}"]');
+            if (!element?.textContent.trim()) return false;
+            const style = getComputedStyle(element);
+            const bounds = element.getBoundingClientRect();
+            return style.display !== 'none' && style.visibility !== 'hidden' && bounds.width > 0 && bounds.height > 0;
+          })()`
+        ),
+        `${testId} must be visible`
+      );
+    }
+    assert.equal(
+      fixture.receiptRequests.filter(
+        (request) => request.authorization === `Receipt ${capabilities.success}`
+      ).length,
+      1,
+      'the terminal capability must not be reused after rotation'
+    );
+    assert.equal(
+      fixture.receiptRequests.filter(
+        (request) => request.authorization === `Receipt ${capabilities.rotation}`
+      ).length,
+      1,
+      'the replacement capability must be requested exactly once'
+    );
+
+    const invalidCount = fixture.receiptRequests.length;
+    const invalidNavigation = await cdp.send(
+      'Page.navigate',
+      { url: `${fixture.origin}/ui/verification-result#receipt=invalid` },
+      sessionId
+    );
+    assert.equal(invalidNavigation.loaderId, undefined);
+    await waitFor(
+      cdp,
+      sessionId,
+      `document.querySelector('[data-testid="vp-verification-result"]')?.dataset.state === 'not-found' && location.hash === ''`
+    );
+    assert.equal(fixture.receiptRequests.length, invalidCount);
+    assert.deepEqual(
+      await evaluate(
+        cdp,
+        sessionId,
+        `({ sentinel: window.__vpDocumentSentinel, timeOrigin: performance.timeOrigin })`
+      ),
+      initialDocument
+    );
+
+    await cdp.send(
+      'Page.navigate',
+      {
+        url: `${fixture.origin}/ui/verification-result?untrusted=value#receipt=invalid`,
+      },
+      sessionId
+    );
+    await waitFor(
+      cdp,
+      sessionId,
+      `document.querySelector('[data-testid="vp-verification-result"]')?.dataset.state === 'not-found' && location.search === '' && location.hash === ''`
+    );
+    assert.equal(fixture.receiptRequests.length, invalidCount);
+
     async function navigate(pathname, capability, expectedState, timeout = 8_000) {
       const receiptCount = fixture.receiptRequests.length;
       navigationSequence += 1;
@@ -333,41 +516,6 @@ async function run() {
       });
     }
 
-    await navigate('/ui/verification-result', capabilities.success, 'verified');
-    assert.equal(
-      await evaluate(
-        cdp,
-        sessionId,
-        `document.querySelector('[data-testid="vp-verification-status"]')?.textContent.trim()`
-      ),
-      'Verification successful'
-    );
-    for (const testId of [
-      'vp-test-name',
-      'vp-run-jti',
-      'vp-suite-plan-id',
-      'vp-suite-module-id',
-      'vp-artifact-sha256',
-      'vp-matrix-sha256',
-      'vp-variant-sha256',
-      'vp-receipt-sha256',
-    ]) {
-      assert.ok(
-        await evaluate(
-          cdp,
-          sessionId,
-          `(() => {
-            const element = document.querySelector('[data-testid="${testId}"]');
-            if (!element?.textContent.trim()) return false;
-            const style = getComputedStyle(element);
-            const bounds = element.getBoundingClientRect();
-            return style.display !== 'none' && style.visibility !== 'hidden' && bounds.width > 0 && bounds.height > 0;
-          })()`
-        ),
-        `${testId} must be visible`
-      );
-    }
-
     await navigate('/ui/verification-result/', capabilities.trailing, 'verified');
     await navigate('/ui/verification-result', capabilities.notFound, 'not-found');
     await navigate('/ui/verification-result', capabilities.unavailable, 'generic-error');
@@ -397,6 +545,53 @@ async function run() {
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
     assert.equal(fixture.receiptRequests.length, delayedCount + 1);
+    const supersedingNavigation = await cdp.send(
+      'Page.navigate',
+      {
+        url: `${fixture.origin}/ui/verification-result#receipt=${capabilities.superseding}`,
+      },
+      sessionId
+    );
+    assert.equal(supersedingNavigation.loaderId, undefined);
+    await waitFor(
+      cdp,
+      sessionId,
+      `document.querySelector('[data-testid="vp-verification-result"]')?.dataset.state === 'verified' && document.querySelector('[data-testid="vp-test-name"]')?.textContent.trim() === 'openid4vp-browser-contract-superseding'`
+    );
+    assert.equal(fixture.receiptRequests.length, delayedCount + 2);
+    await new Promise((resolve) => setTimeout(resolve, 1_700));
+    assert.equal(
+      await evaluate(
+        cdp,
+        sessionId,
+        `document.querySelector('[data-testid="vp-test-name"]')?.textContent.trim()`
+      ),
+      'openid4vp-browser-contract-superseding',
+      'an aborted older request must not replace the newer terminal projection'
+    );
+
+    const abandonedCount = fixture.receiptRequests.length;
+    navigationSequence += 1;
+    await cdp.send(
+      'Page.navigate',
+      {
+        url: `${fixture.origin}/ui/verification-result?browser_case=${navigationSequence}#receipt=${capabilities.abandoned}`,
+      },
+      sessionId
+    );
+    await waitFor(
+      cdp,
+      sessionId,
+      `document.querySelector('[data-testid="vp-verification-result"]')?.dataset.state === 'loading'`
+    );
+    const abandonedRequestDeadline = Date.now() + 5_000;
+    while (
+      fixture.receiptRequests.length === abandonedCount &&
+      Date.now() < abandonedRequestDeadline
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    assert.equal(fixture.receiptRequests.length, abandonedCount + 1);
     await evaluate(
       cdp,
       sessionId,
@@ -417,7 +612,7 @@ async function run() {
       sessionId,
       `document.querySelector('[data-testid="vp-verification-result"]')?.dataset.state === 'not-found'`
     );
-    assert.equal(fixture.receiptRequests.length, delayedCount + 1);
+    assert.equal(fixture.receiptRequests.length, abandonedCount + 1);
 
     const rejectedCount = fixture.receiptRequests.length;
     navigationSequence += 1;
