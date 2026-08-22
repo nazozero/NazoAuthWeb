@@ -7,6 +7,7 @@ import {
   loadVerificationReceipt,
   subscribeVerificationReceiptCapability,
   type VerificationReceiptCapabilityLease,
+  type VerificationReceiptFailureReason,
   type VerificationReceiptProjection,
 } from '../lib/verificationReceipt';
 import './VerificationResult.css';
@@ -16,7 +17,10 @@ type PageState =
   | Readonly<{ kind: 'verified'; receipt: VerificationReceiptProjection }>
   | Readonly<{ kind: 'expired' }>
   | Readonly<{ kind: 'not-found' }>
-  | Readonly<{ kind: 'generic-error' }>;
+  | Readonly<{
+      kind: 'generic-error';
+      reason: VerificationReceiptFailureReason;
+    }>;
 
 function Detail({
   label,
@@ -174,6 +178,9 @@ export default function VerificationResult() {
       className="verification-result-page"
       data-testid="vp-verification-result"
       data-state={state.kind}
+      data-error-reason={
+        state.kind === 'generic-error' ? state.reason : undefined
+      }
     >
       <div className="verification-result-backdrop" aria-hidden="true" />
       <article className="verification-result-card" aria-labelledby="verification-result-title">

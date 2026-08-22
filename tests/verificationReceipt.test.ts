@@ -7,6 +7,8 @@ import {
   createVerificationReceiptCapabilityMemory,
   loadVerificationReceipt,
   parseVerificationReceipt,
+  VERIFICATION_RECEIPT_FAILURE_REASONS,
+  type VerificationReceiptFailureReason,
   verificationResultPath,
 } from '../src/lib/verificationReceipt.ts';
 
@@ -66,6 +68,17 @@ function withoutField(value: Record<string, unknown>, field: string) {
   const copy = { ...value };
   delete copy[field];
   return copy;
+}
+
+function assertInvalid(
+  value: unknown,
+  reason?: VerificationReceiptFailureReason
+) {
+  const parsed = parseVerificationReceipt(value);
+  assert.equal(parsed.kind, 'invalid');
+  if (parsed.kind === 'invalid' && reason) {
+    assert.equal(parsed.reason, reason);
+  }
 }
 
 test('uses the complete backend PresentationVerificationProjection wire shape', () => {
@@ -244,7 +257,10 @@ test('rotates capabilities without allowing an old lease to clear the replacemen
 });
 
 test('accepts only the closed verified projection and strips non-display fields', () => {
-  assert.deepEqual(parseVerificationReceipt(receiptPayload), expectedProjection);
+  assert.deepEqual(parseVerificationReceipt(receiptPayload), {
+    kind: 'verified',
+    receipt: expectedProjection,
+  });
 
   assert.deepEqual(
     parseVerificationReceipt({
@@ -258,7 +274,7 @@ test('accepts only the closed verified projection and strips non-display fields'
         },
       },
     }),
-    expectedProjection
+    { kind: 'verified', receipt: expectedProjection }
   );
 
   for (const invalid of [
@@ -289,8 +305,177 @@ test('accepts only the closed verified projection and strips non-display fields'
       },
     },
   ]) {
-    assert.equal(parseVerificationReceipt(invalid), null);
+    assertInvalid(invalid);
   }
+});
+
+test('returns one fixed non-secret reason for every parser failure branch', () => {
+  const cases: ReadonlyArray<
+    readonly [VerificationReceiptFailureReason, unknown]
+  > = [
+    ['receipt-shape', null],
+    ['receipt-fields', { ...receiptPayload, extra: true }],
+    ['evidence-shape', { ...receiptPayload, evidence_context: null }],
+    [
+      'evidence-fields',
+      {
+        ...receiptPayload,
+        evidence_context: { ...receiptPayload.evidence_context, extra: true },
+      },
+    ],
+    ['binding-shape', { ...receiptPayload, presentation_binding: null }],
+    [
+      'binding-fields',
+      {
+        ...receiptPayload,
+        presentation_binding: { ...receiptPayload.presentation_binding, extra: true },
+      },
+    ],
+    [
+      'trust-policy-shape',
+      {
+        ...receiptPayload,
+        presentation_binding: {
+          ...receiptPayload.presentation_binding,
+          trust_policy: null,
+        },
+      },
+    ],
+    [
+      'trust-policy-fields',
+      {
+        ...receiptPayload,
+        presentation_binding: {
+          ...receiptPayload.presentation_binding,
+          trust_policy: {
+            ...receiptPayload.presentation_binding.trust_policy,
+            extra: true,
+          },
+        },
+      },
+    ],
+    ['schema', { ...receiptPayload, schema: 2 }],
+    ['status', { ...receiptPayload, status: 'failed' }],
+    ['issuer', { ...receiptPayload, issuer: '' }],
+    ['deployment-id', { ...receiptPayload, deployment_id: '' }],
+    ['runtime-instance-id', { ...receiptPayload, runtime_instance_id: '' }],
+    ['instance-key-id', { ...receiptPayload, instance_key_id: '' }],
+    ['tenant-id', { ...receiptPayload, tenant_id: 'not-a-uuid' }],
+    ['transaction-id', { ...receiptPayload, transaction_id: 'not-a-uuid' }],
+    ['receipt-id', { ...receiptPayload, receipt_id: 'not-a-uuid' }],
+    [
+      'issuance-request-jti',
+      { ...receiptPayload, issuance_request_jti: 'not-a-uuid' },
+    ],
+    ['intent-sha256', { ...receiptPayload, intent_sha256: 'short' }],
+    ['receipt-sha256', { ...receiptPayload, receipt_sha256: 'short' }],
+    [
+      'presentation-request-sha256',
+      {
+        ...receiptPayload,
+        presentation_binding: {
+          ...receiptPayload.presentation_binding,
+          presentation_request_sha256: 'short',
+        },
+      },
+    ],
+    [
+      'trust-policy-values',
+      {
+        ...receiptPayload,
+        presentation_binding: {
+          ...receiptPayload.presentation_binding,
+          trust_policy: {
+            binding_id: '019c8ca2-30a6-7000-8000-000000000007',
+            resource_id: null,
+            resource_digest: null,
+          },
+        },
+      },
+    ],
+    ['completed-at', { ...receiptPayload, completed_at: '2026-02-30T03:00:00Z' }],
+    ['expires-at', { ...receiptPayload, expires_at: '2026-08-22T24:00:00Z' }],
+    ['timestamp-order', { ...receiptPayload, expires_at: receiptPayload.completed_at }],
+    [
+      'run-jti',
+      {
+        ...receiptPayload,
+        evidence_context: { ...receiptPayload.evidence_context, run_jti: '' },
+      },
+    ],
+    [
+      'artifact-sha256',
+      {
+        ...receiptPayload,
+        evidence_context: {
+          ...receiptPayload.evidence_context,
+          artifact_sha256: 'short',
+        },
+      },
+    ],
+    [
+      'matrix-sha256',
+      {
+        ...receiptPayload,
+        evidence_context: {
+          ...receiptPayload.evidence_context,
+          matrix_sha256: 'short',
+        },
+      },
+    ],
+    [
+      'suite-plan-id',
+      {
+        ...receiptPayload,
+        evidence_context: {
+          ...receiptPayload.evidence_context,
+          suite_plan_id: 'plan/with/slash',
+        },
+      },
+    ],
+    [
+      'suite-module-id',
+      {
+        ...receiptPayload,
+        evidence_context: {
+          ...receiptPayload.evidence_context,
+          suite_module_id: 'module/with/slash',
+        },
+      },
+    ],
+    [
+      'test-name',
+      {
+        ...receiptPayload,
+        evidence_context: { ...receiptPayload.evidence_context, test_name: '' },
+      },
+    ],
+    [
+      'variant-sha256',
+      {
+        ...receiptPayload,
+        evidence_context: {
+          ...receiptPayload.evidence_context,
+          variant_sha256: 'short',
+        },
+      },
+    ],
+  ];
+
+  for (const [reason, value] of cases) {
+    assertInvalid(value, reason);
+  }
+  assert.deepEqual(
+    cases.map(([reason]) => reason).sort(),
+    VERIFICATION_RECEIPT_FAILURE_REASONS.filter(
+      (reason) => !['http-status', 'content-type', 'invalid-json', 'network'].includes(reason)
+    ).sort()
+  );
+  assert.ok(
+    VERIFICATION_RECEIPT_FAILURE_REASONS.every((reason) =>
+      /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(reason)
+    )
+  );
 });
 
 test('fails closed on missing, extra, or malformed verification binding fields', () => {
@@ -300,7 +485,7 @@ test('fails closed on missing, extra, or malformed verification binding fields',
     'presentation_binding',
     'intent_sha256',
   ]) {
-    assert.equal(parseVerificationReceipt(withoutField(receiptPayload, field)), null);
+    assertInvalid(withoutField(receiptPayload, field));
   }
 
   for (const invalid of [
@@ -391,7 +576,7 @@ test('fails closed on missing, extra, or malformed verification binding fields',
       },
     },
   ]) {
-    assert.equal(parseVerificationReceipt(invalid), null);
+    assertInvalid(invalid);
   }
 
   for (const trustPolicy of [
@@ -411,15 +596,14 @@ test('fails closed on missing, extra, or malformed verification binding fields',
       resource_digest: digest,
     },
   ]) {
-    assert.equal(
-      parseVerificationReceipt({
+    assertInvalid(
+      {
         ...receiptPayload,
         presentation_binding: {
           ...receiptPayload.presentation_binding,
           trust_policy: trustPolicy,
         },
-      }),
-      null
+      }
     );
   }
 });
@@ -466,7 +650,10 @@ test('maps unified absence and every other failure without exposing response det
     undefined,
     async () => new Response(JSON.stringify({ error: 'storage detail' }), { status: 503 })
   );
-  assert.deepEqual(unavailable, { kind: 'generic-error' });
+  assert.deepEqual(unavailable, {
+    kind: 'generic-error',
+    reason: 'http-status',
+  });
 
   const networkFailure = await loadVerificationReceipt(
     capability,
@@ -475,7 +662,10 @@ test('maps unified absence and every other failure without exposing response det
       throw new Error('network detail');
     }
   );
-  assert.deepEqual(networkFailure, { kind: 'generic-error' });
+  assert.deepEqual(networkFailure, {
+    kind: 'generic-error',
+    reason: 'network',
+  });
 
   const wrongMediaType = await loadVerificationReceipt(
     capability,
@@ -486,5 +676,40 @@ test('maps unified absence and every other failure without exposing response det
         headers: { 'Content-Type': 'application/json-patch+json' },
       })
   );
-  assert.deepEqual(wrongMediaType, { kind: 'generic-error' });
+  assert.deepEqual(wrongMediaType, {
+    kind: 'generic-error',
+    reason: 'content-type',
+  });
+
+  const invalidJson = await loadVerificationReceipt(
+    capability,
+    undefined,
+    async () =>
+      new Response('{', {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+  );
+  assert.deepEqual(invalidJson, {
+    kind: 'generic-error',
+    reason: 'invalid-json',
+  });
+
+  const invalidProjection = await loadVerificationReceipt(
+    capability,
+    undefined,
+    async () =>
+      new Response(JSON.stringify({ ...receiptPayload, schema: 2 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+  );
+  assert.deepEqual(invalidProjection, {
+    kind: 'generic-error',
+    reason: 'schema',
+  });
+
+  for (const result of [unavailable, networkFailure, wrongMediaType, invalidJson, invalidProjection]) {
+    assert.doesNotMatch(JSON.stringify(result), /secret|storage detail|network detail|receipt=/i);
+  }
 });

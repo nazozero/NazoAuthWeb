@@ -62,7 +62,59 @@ export type VerificationReceiptProjection = Readonly<{
 export type VerificationReceiptLoadResult =
   | Readonly<{ kind: 'verified'; receipt: VerificationReceiptProjection }>
   | Readonly<{ kind: 'not-found' }>
-  | Readonly<{ kind: 'generic-error' }>;
+  | Readonly<{
+      kind: 'generic-error';
+      reason: VerificationReceiptFailureReason;
+    }>;
+
+export const VERIFICATION_RECEIPT_FAILURE_REASONS = [
+  'http-status',
+  'content-type',
+  'invalid-json',
+  'network',
+  'receipt-shape',
+  'receipt-fields',
+  'evidence-shape',
+  'evidence-fields',
+  'binding-shape',
+  'binding-fields',
+  'trust-policy-shape',
+  'trust-policy-fields',
+  'schema',
+  'status',
+  'issuer',
+  'deployment-id',
+  'runtime-instance-id',
+  'instance-key-id',
+  'tenant-id',
+  'transaction-id',
+  'receipt-id',
+  'issuance-request-jti',
+  'intent-sha256',
+  'receipt-sha256',
+  'presentation-request-sha256',
+  'trust-policy-values',
+  'completed-at',
+  'expires-at',
+  'timestamp-order',
+  'run-jti',
+  'artifact-sha256',
+  'matrix-sha256',
+  'suite-plan-id',
+  'suite-module-id',
+  'test-name',
+  'variant-sha256',
+] as const;
+
+export type VerificationReceiptFailureReason =
+  (typeof VERIFICATION_RECEIPT_FAILURE_REASONS)[number];
+
+export type VerificationReceiptParseResult =
+  | Readonly<{ kind: 'verified'; receipt: VerificationReceiptProjection }>
+  | Readonly<{
+      kind: 'invalid';
+      reason: VerificationReceiptFailureReason;
+    }>;
 
 export type ReceiptBootstrapLocation = Readonly<{
   hash: string;
@@ -234,13 +286,13 @@ export type VerificationReceiptCapabilityLease = Readonly<{
 
 export function parseVerificationReceipt(
   value: unknown
-): VerificationReceiptProjection | null {
+): VerificationReceiptParseResult {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return null;
+    return { kind: 'invalid', reason: 'receipt-shape' };
   }
   const receipt = value as Record<string, unknown>;
   if (!hasExactFields(receipt, RECEIPT_FIELDS)) {
-    return null;
+    return { kind: 'invalid', reason: 'receipt-fields' };
   }
   const evidenceValue = receipt.evidence_context;
   if (
@@ -248,11 +300,11 @@ export function parseVerificationReceipt(
     evidenceValue === null ||
     Array.isArray(evidenceValue)
   ) {
-    return null;
+    return { kind: 'invalid', reason: 'evidence-shape' };
   }
   const evidence = evidenceValue as Record<string, unknown>;
   if (!hasExactFields(evidence, EVIDENCE_FIELDS)) {
-    return null;
+    return { kind: 'invalid', reason: 'evidence-fields' };
   }
   const presentationBindingValue = receipt.presentation_binding;
   if (
@@ -260,11 +312,11 @@ export function parseVerificationReceipt(
     presentationBindingValue === null ||
     Array.isArray(presentationBindingValue)
   ) {
-    return null;
+    return { kind: 'invalid', reason: 'binding-shape' };
   }
   const presentationBinding = presentationBindingValue as Record<string, unknown>;
   if (!hasExactFields(presentationBinding, PRESENTATION_BINDING_FIELDS)) {
-    return null;
+    return { kind: 'invalid', reason: 'binding-fields' };
   }
   const trustPolicyValue = presentationBinding.trust_policy;
   if (
@@ -272,11 +324,11 @@ export function parseVerificationReceipt(
     trustPolicyValue === null ||
     Array.isArray(trustPolicyValue)
   ) {
-    return null;
+    return { kind: 'invalid', reason: 'trust-policy-shape' };
   }
   const trustPolicy = trustPolicyValue as Record<string, unknown>;
   if (!hasExactFields(trustPolicy, TRUST_POLICY_FIELDS)) {
-    return null;
+    return { kind: 'invalid', reason: 'trust-policy-fields' };
   }
   const trustPolicyIsAbsent =
     trustPolicy.binding_id === null &&
@@ -290,60 +342,107 @@ export function parseVerificationReceipt(
     typeof trustPolicy.resource_digest === 'string' &&
     SHA256_PATTERN.test(trustPolicy.resource_digest);
 
-  if (
-    receipt.schema !== 1 ||
-    receipt.status !== 'verified' ||
-    !isNonEmptyString(receipt.issuer, 2048) ||
-    !isNonEmptyString(receipt.deployment_id) ||
-    !isNonEmptyString(receipt.runtime_instance_id) ||
-    !isNonEmptyString(receipt.instance_key_id) ||
-    typeof receipt.tenant_id !== 'string' ||
-    !UUID_PATTERN.test(receipt.tenant_id) ||
-    typeof receipt.transaction_id !== 'string' ||
-    !UUID_PATTERN.test(receipt.transaction_id) ||
-    typeof receipt.receipt_id !== 'string' ||
-    !UUID_PATTERN.test(receipt.receipt_id) ||
-    typeof receipt.issuance_request_jti !== 'string' ||
-    !UUID_PATTERN.test(receipt.issuance_request_jti) ||
-    typeof receipt.intent_sha256 !== 'string' ||
-    !SHA256_PATTERN.test(receipt.intent_sha256) ||
-    typeof receipt.receipt_sha256 !== 'string' ||
-    !SHA256_PATTERN.test(receipt.receipt_sha256) ||
-    typeof presentationBinding.presentation_request_sha256 !== 'string' ||
-    !SHA256_PATTERN.test(presentationBinding.presentation_request_sha256) ||
-    (!trustPolicyIsAbsent && !trustPolicyIsPresent) ||
-    !isRfc3339Utc(receipt.completed_at) ||
-    !isRfc3339Utc(receipt.expires_at) ||
-    Date.parse(receipt.expires_at) <= Date.parse(receipt.completed_at) ||
-    !isNonEmptyString(evidence.run_jti) ||
-    typeof evidence.artifact_sha256 !== 'string' ||
-    !SHA256_PATTERN.test(evidence.artifact_sha256) ||
-    typeof evidence.matrix_sha256 !== 'string' ||
-    !SHA256_PATTERN.test(evidence.matrix_sha256) ||
-    typeof evidence.suite_plan_id !== 'string' ||
-    !FILE_IDENTIFIER_PATTERN.test(evidence.suite_plan_id) ||
-    typeof evidence.suite_module_id !== 'string' ||
-    !FILE_IDENTIFIER_PATTERN.test(evidence.suite_module_id) ||
-    !isNonEmptyString(evidence.test_name) ||
-    typeof evidence.variant_sha256 !== 'string' ||
-    !SHA256_PATTERN.test(evidence.variant_sha256)
-  ) {
-    return null;
+  const fieldChecks: ReadonlyArray<
+    readonly [VerificationReceiptFailureReason, boolean]
+  > = [
+    ['schema', receipt.schema === 1],
+    ['status', receipt.status === 'verified'],
+    ['issuer', isNonEmptyString(receipt.issuer, 2048)],
+    ['deployment-id', isNonEmptyString(receipt.deployment_id)],
+    ['runtime-instance-id', isNonEmptyString(receipt.runtime_instance_id)],
+    ['instance-key-id', isNonEmptyString(receipt.instance_key_id)],
+    [
+      'tenant-id',
+      typeof receipt.tenant_id === 'string' && UUID_PATTERN.test(receipt.tenant_id),
+    ],
+    [
+      'transaction-id',
+      typeof receipt.transaction_id === 'string' &&
+        UUID_PATTERN.test(receipt.transaction_id),
+    ],
+    [
+      'receipt-id',
+      typeof receipt.receipt_id === 'string' && UUID_PATTERN.test(receipt.receipt_id),
+    ],
+    [
+      'issuance-request-jti',
+      typeof receipt.issuance_request_jti === 'string' &&
+        UUID_PATTERN.test(receipt.issuance_request_jti),
+    ],
+    [
+      'intent-sha256',
+      typeof receipt.intent_sha256 === 'string' &&
+        SHA256_PATTERN.test(receipt.intent_sha256),
+    ],
+    [
+      'receipt-sha256',
+      typeof receipt.receipt_sha256 === 'string' &&
+        SHA256_PATTERN.test(receipt.receipt_sha256),
+    ],
+    [
+      'presentation-request-sha256',
+      typeof presentationBinding.presentation_request_sha256 === 'string' &&
+        SHA256_PATTERN.test(presentationBinding.presentation_request_sha256),
+    ],
+    ['trust-policy-values', trustPolicyIsAbsent || trustPolicyIsPresent],
+    ['completed-at', isRfc3339Utc(receipt.completed_at)],
+    ['expires-at', isRfc3339Utc(receipt.expires_at)],
+    [
+      'timestamp-order',
+      typeof receipt.completed_at === 'string' &&
+        typeof receipt.expires_at === 'string' &&
+        Date.parse(receipt.expires_at) > Date.parse(receipt.completed_at),
+    ],
+    ['run-jti', isNonEmptyString(evidence.run_jti)],
+    [
+      'artifact-sha256',
+      typeof evidence.artifact_sha256 === 'string' &&
+        SHA256_PATTERN.test(evidence.artifact_sha256),
+    ],
+    [
+      'matrix-sha256',
+      typeof evidence.matrix_sha256 === 'string' &&
+        SHA256_PATTERN.test(evidence.matrix_sha256),
+    ],
+    [
+      'suite-plan-id',
+      typeof evidence.suite_plan_id === 'string' &&
+        FILE_IDENTIFIER_PATTERN.test(evidence.suite_plan_id),
+    ],
+    [
+      'suite-module-id',
+      typeof evidence.suite_module_id === 'string' &&
+        FILE_IDENTIFIER_PATTERN.test(evidence.suite_module_id),
+    ],
+    ['test-name', isNonEmptyString(evidence.test_name)],
+    [
+      'variant-sha256',
+      typeof evidence.variant_sha256 === 'string' &&
+        SHA256_PATTERN.test(evidence.variant_sha256),
+    ],
+  ];
+  for (const [reason, valid] of fieldChecks) {
+    if (!valid) {
+      return { kind: 'invalid', reason };
+    }
   }
 
   return {
-    status: 'verified',
-    receiptId: receipt.receipt_id,
-    receiptSha256: receipt.receipt_sha256,
-    runJti: evidence.run_jti,
-    artifactSha256: evidence.artifact_sha256,
-    matrixSha256: evidence.matrix_sha256,
-    suitePlanId: evidence.suite_plan_id,
-    suiteModuleId: evidence.suite_module_id,
-    testName: evidence.test_name,
-    variantSha256: evidence.variant_sha256,
-    completedAt: receipt.completed_at,
-    expiresAt: receipt.expires_at,
+    kind: 'verified',
+    receipt: {
+      status: 'verified',
+      receiptId: receipt.receipt_id as string,
+      receiptSha256: receipt.receipt_sha256 as string,
+      runJti: evidence.run_jti as string,
+      artifactSha256: evidence.artifact_sha256 as string,
+      matrixSha256: evidence.matrix_sha256 as string,
+      suitePlanId: evidence.suite_plan_id as string,
+      suiteModuleId: evidence.suite_module_id as string,
+      testName: evidence.test_name as string,
+      variantSha256: evidence.variant_sha256 as string,
+      completedAt: receipt.completed_at as string,
+      expiresAt: receipt.expires_at as string,
+    },
   };
 }
 
@@ -375,19 +474,25 @@ export async function loadVerificationReceipt(
       return { kind: 'not-found' };
     }
     if (!response.ok) {
-      return { kind: 'generic-error' };
+      return { kind: 'generic-error', reason: 'http-status' };
     }
     const contentType = response.headers.get('content-type') ?? '';
     const mediaType = contentType.split(';', 1)[0]?.trim().toLowerCase();
     if (mediaType !== 'application/json') {
-      return { kind: 'generic-error' };
+      return { kind: 'generic-error', reason: 'content-type' };
     }
-    const receipt = parseVerificationReceipt(await response.json());
-    return receipt
-      ? { kind: 'verified', receipt }
-      : { kind: 'generic-error' };
+    let body: unknown;
+    try {
+      body = await response.json();
+    } catch {
+      return { kind: 'generic-error', reason: 'invalid-json' };
+    }
+    const parsed = parseVerificationReceipt(body);
+    return parsed.kind === 'verified'
+      ? parsed
+      : { kind: 'generic-error', reason: parsed.reason };
   } catch {
-    return { kind: 'generic-error' };
+    return { kind: 'generic-error', reason: 'network' };
   }
 }
 

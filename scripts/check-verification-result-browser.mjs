@@ -342,6 +342,14 @@ async function run() {
       sessionId,
       `document.querySelector('[data-testid="vp-verification-result"]')?.dataset.state === 'not-found'`
     );
+    assert.equal(
+      await evaluate(
+        cdp,
+        sessionId,
+        `document.querySelector('[data-testid="vp-verification-result"]')?.hasAttribute('data-error-reason')`
+      ),
+      false
+    );
     const initialDocument = await evaluate(
       cdp,
       sessionId,
@@ -416,6 +424,14 @@ async function run() {
         `document.querySelector('[data-testid="vp-verification-status"]')?.textContent.trim()`
       ),
       'Verification successful'
+    );
+    assert.equal(
+      await evaluate(
+        cdp,
+        sessionId,
+        `document.querySelector('[data-testid="vp-verification-result"]')?.hasAttribute('data-error-reason')`
+      ),
+      false
     );
     for (const testId of [
       'vp-test-name',
@@ -493,7 +509,13 @@ async function run() {
     );
     assert.equal(fixture.receiptRequests.length, invalidCount);
 
-    async function navigate(pathname, capability, expectedState, timeout = 8_000) {
+    async function navigate(
+      pathname,
+      capability,
+      expectedState,
+      expectedReason = null,
+      timeout = 8_000
+    ) {
       const receiptCount = fixture.receiptRequests.length;
       navigationSequence += 1;
       await cdp.send(
@@ -519,6 +541,23 @@ async function run() {
         search: '',
         hash: '',
       });
+      assert.deepEqual(
+        await evaluate(
+          cdp,
+          sessionId,
+          `(() => {
+            const root = document.querySelector('[data-testid="vp-verification-result"]');
+            return {
+              hasReason: root?.hasAttribute('data-error-reason') ?? false,
+              reason: root?.getAttribute('data-error-reason') ?? null,
+            };
+          })()`
+        ),
+        {
+          hasReason: expectedReason !== null,
+          reason: expectedReason,
+        }
+      );
       assert.equal(fixture.receiptRequests.length, receiptCount + 1);
       assert.deepEqual(fixture.receiptRequests.at(-1), {
         authorization: `Receipt ${capability}`,
@@ -529,10 +568,31 @@ async function run() {
 
     await navigate('/ui/verification-result/', capabilities.trailing, 'verified');
     await navigate('/ui/verification-result', capabilities.notFound, 'not-found');
-    await navigate('/ui/verification-result', capabilities.unavailable, 'generic-error');
-    await navigate('/ui/verification-result', capabilities.schema, 'generic-error');
-    await navigate('/ui/verification-result', capabilities.media, 'generic-error');
-    await navigate('/ui/verification-result', capabilities.expiry, 'expired', 8_000);
+    await navigate(
+      '/ui/verification-result',
+      capabilities.unavailable,
+      'generic-error',
+      'http-status'
+    );
+    await navigate(
+      '/ui/verification-result',
+      capabilities.schema,
+      'generic-error',
+      'schema'
+    );
+    await navigate(
+      '/ui/verification-result',
+      capabilities.media,
+      'generic-error',
+      'content-type'
+    );
+    await navigate(
+      '/ui/verification-result',
+      capabilities.expiry,
+      'expired',
+      null,
+      8_000
+    );
 
     const delayedCount = fixture.receiptRequests.length;
     navigationSequence += 1;
@@ -547,6 +607,14 @@ async function run() {
       cdp,
       sessionId,
       `document.querySelector('[data-testid="vp-verification-result"]')?.dataset.state === 'loading'`
+    );
+    assert.equal(
+      await evaluate(
+        cdp,
+        sessionId,
+        `document.querySelector('[data-testid="vp-verification-result"]')?.hasAttribute('data-error-reason')`
+      ),
+      false
     );
     const delayedRequestDeadline = Date.now() + 5_000;
     while (
@@ -594,6 +662,14 @@ async function run() {
       cdp,
       sessionId,
       `document.querySelector('[data-testid="vp-verification-result"]')?.dataset.state === 'loading'`
+    );
+    assert.equal(
+      await evaluate(
+        cdp,
+        sessionId,
+        `document.querySelector('[data-testid="vp-verification-result"]')?.hasAttribute('data-error-reason')`
+      ),
+      false
     );
     const abandonedRequestDeadline = Date.now() + 5_000;
     while (
