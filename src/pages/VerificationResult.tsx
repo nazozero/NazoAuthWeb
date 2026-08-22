@@ -177,6 +177,11 @@ export default function VerificationResult() {
                 value={state.receipt.testName}
               />
               <Detail
+                label={t('verificationResult.details.runJti')}
+                testId="vp-run-jti"
+                value={state.receipt.runJti}
+              />
+              <Detail
                 label={t('verificationResult.details.planId')}
                 testId="vp-suite-plan-id"
                 value={state.receipt.suitePlanId}
@@ -185,6 +190,16 @@ export default function VerificationResult() {
                 label={t('verificationResult.details.moduleId')}
                 testId="vp-suite-module-id"
                 value={state.receipt.suiteModuleId}
+              />
+              <Detail
+                label={t('verificationResult.details.artifactDigest')}
+                testId="vp-artifact-sha256"
+                value={state.receipt.artifactSha256}
+              />
+              <Detail
+                label={t('verificationResult.details.matrixDigest')}
+                testId="vp-matrix-sha256"
+                value={state.receipt.matrixSha256}
               />
               <Detail
                 label={t('verificationResult.details.variantDigest')}

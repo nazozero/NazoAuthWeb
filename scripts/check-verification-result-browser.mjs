@@ -344,8 +344,11 @@ async function run() {
     );
     for (const testId of [
       'vp-test-name',
+      'vp-run-jti',
       'vp-suite-plan-id',
       'vp-suite-module-id',
+      'vp-artifact-sha256',
+      'vp-matrix-sha256',
       'vp-variant-sha256',
       'vp-receipt-sha256',
     ]) {
@@ -353,7 +356,13 @@ async function run() {
         await evaluate(
           cdp,
           sessionId,
-          `Boolean(document.querySelector('[data-testid="${testId}"]')?.textContent.trim())`
+          `(() => {
+            const element = document.querySelector('[data-testid="${testId}"]');
+            if (!element?.textContent.trim()) return false;
+            const style = getComputedStyle(element);
+            const bounds = element.getBoundingClientRect();
+            return style.display !== 'none' && style.visibility !== 'hidden' && bounds.width > 0 && bounds.height > 0;
+          })()`
         ),
         `${testId} must be visible`
       );

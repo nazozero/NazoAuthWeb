@@ -37,8 +37,11 @@ test('exposes stable non-secret screenshot evidence selectors', () => {
   }
   for (const testId of [
     'vp-test-name',
+    'vp-run-jti',
     'vp-suite-plan-id',
     'vp-suite-module-id',
+    'vp-artifact-sha256',
+    'vp-matrix-sha256',
     'vp-variant-sha256',
     'vp-receipt-sha256',
   ]) {

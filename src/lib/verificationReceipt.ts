@@ -32,6 +32,9 @@ export type VerificationReceiptProjection = Readonly<{
   status: 'verified';
   receiptId: string;
   receiptSha256: string;
+  runJti: string;
+  artifactSha256: string;
+  matrixSha256: string;
   suitePlanId: string;
   suiteModuleId: string;
   testName: string;
@@ -262,6 +265,9 @@ export function parseVerificationReceipt(
     status: 'verified',
     receiptId: receipt.receipt_id,
     receiptSha256: receipt.receipt_sha256,
+    runJti: evidence.run_jti,
+    artifactSha256: evidence.artifact_sha256,
+    matrixSha256: evidence.matrix_sha256,
     suitePlanId: evidence.suite_plan_id,
     suiteModuleId: evidence.suite_module_id,
     testName: evidence.test_name,

@@ -128,6 +128,10 @@
   grid-column: 1 / -1;
 }
 
+.verification-result-detail:nth-child(2) {
+  grid-column: 1 / -1;
+}
+
 .verification-result-detail dt {
   margin-bottom: 7px;
   color: var(--muted);
@@ -212,6 +216,10 @@
   }
 
   .verification-result-detail:first-child {
+    grid-column: auto;
+  }
+
+  .verification-result-detail:nth-child(2) {
     grid-column: auto;
   }
 
