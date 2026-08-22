@@ -10,12 +10,16 @@ const RECEIPT_FIELDS = [
   'evidence_context',
   'expires_at',
   'instance_key_id',
+  'intent_sha256',
+  'issuance_request_jti',
   'issuer',
+  'presentation_binding',
   'receipt_id',
   'receipt_sha256',
   'runtime_instance_id',
   'schema',
   'status',
+  'tenant_id',
   'transaction_id',
 ] as const;
 
@@ -27,6 +31,17 @@ const EVIDENCE_FIELDS = [
   'suite_plan_id',
   'test_name',
   'variant_sha256',
+] as const;
+
+const PRESENTATION_BINDING_FIELDS = [
+  'presentation_request_sha256',
+  'trust_policy',
+] as const;
+
+const TRUST_POLICY_FIELDS = [
+  'binding_id',
+  'resource_digest',
+  'resource_id',
 ] as const;
 
 export type VerificationReceiptProjection = Readonly<{
@@ -239,6 +254,41 @@ export function parseVerificationReceipt(
   if (!hasExactFields(evidence, EVIDENCE_FIELDS)) {
     return null;
   }
+  const presentationBindingValue = receipt.presentation_binding;
+  if (
+    typeof presentationBindingValue !== 'object' ||
+    presentationBindingValue === null ||
+    Array.isArray(presentationBindingValue)
+  ) {
+    return null;
+  }
+  const presentationBinding = presentationBindingValue as Record<string, unknown>;
+  if (!hasExactFields(presentationBinding, PRESENTATION_BINDING_FIELDS)) {
+    return null;
+  }
+  const trustPolicyValue = presentationBinding.trust_policy;
+  if (
+    typeof trustPolicyValue !== 'object' ||
+    trustPolicyValue === null ||
+    Array.isArray(trustPolicyValue)
+  ) {
+    return null;
+  }
+  const trustPolicy = trustPolicyValue as Record<string, unknown>;
+  if (!hasExactFields(trustPolicy, TRUST_POLICY_FIELDS)) {
+    return null;
+  }
+  const trustPolicyIsAbsent =
+    trustPolicy.binding_id === null &&
+    trustPolicy.resource_id === null &&
+    trustPolicy.resource_digest === null;
+  const trustPolicyIsPresent =
+    typeof trustPolicy.binding_id === 'string' &&
+    UUID_PATTERN.test(trustPolicy.binding_id) &&
+    typeof trustPolicy.resource_id === 'string' &&
+    FILE_IDENTIFIER_PATTERN.test(trustPolicy.resource_id) &&
+    typeof trustPolicy.resource_digest === 'string' &&
+    SHA256_PATTERN.test(trustPolicy.resource_digest);
 
   if (
     receipt.schema !== 1 ||
@@ -247,12 +297,21 @@ export function parseVerificationReceipt(
     !isNonEmptyString(receipt.deployment_id) ||
     !isNonEmptyString(receipt.runtime_instance_id) ||
     !isNonEmptyString(receipt.instance_key_id) ||
+    typeof receipt.tenant_id !== 'string' ||
+    !UUID_PATTERN.test(receipt.tenant_id) ||
     typeof receipt.transaction_id !== 'string' ||
     !UUID_PATTERN.test(receipt.transaction_id) ||
     typeof receipt.receipt_id !== 'string' ||
     !UUID_PATTERN.test(receipt.receipt_id) ||
+    typeof receipt.issuance_request_jti !== 'string' ||
+    !UUID_PATTERN.test(receipt.issuance_request_jti) ||
+    typeof receipt.intent_sha256 !== 'string' ||
+    !SHA256_PATTERN.test(receipt.intent_sha256) ||
     typeof receipt.receipt_sha256 !== 'string' ||
     !SHA256_PATTERN.test(receipt.receipt_sha256) ||
+    typeof presentationBinding.presentation_request_sha256 !== 'string' ||
+    !SHA256_PATTERN.test(presentationBinding.presentation_request_sha256) ||
+    (!trustPolicyIsAbsent && !trustPolicyIsPresent) ||
     !isRfc3339Utc(receipt.completed_at) ||
     !isRfc3339Utc(receipt.expires_at) ||
     Date.parse(receipt.expires_at) <= Date.parse(receipt.completed_at) ||
