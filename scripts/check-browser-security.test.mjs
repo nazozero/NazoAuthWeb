@@ -37,6 +37,16 @@ test('source gate rejects durable storage outside the exact allowlist', () => {
   )
 })
 
+test('source gate rejects one-time credentials in browser URLs', () => {
+  for (const source of [
+    "fetch('/auth/me/access-delivery?token=' + token)",
+    "const token = searchParams.get('delivery_token')",
+    "const token = query.get('token')",
+  ]) {
+    assert.match(sourceFindings('pages/Profile.tsx', source).join('\n'), /credential in URL/)
+  }
+})
+
 test('artifact gate rejects credential-shaped build content', () => {
   const jwt = `eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyLTEifQ.c2lnbmF0dXJlLXZhbHVl`
   const samples = [

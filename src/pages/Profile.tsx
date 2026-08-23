@@ -9,6 +9,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   AppWindow,
+  EyeOff,
   FileClock,
   LogOut,
   PlusCircle,
@@ -18,11 +19,10 @@ import {
   Upload,
   UserRound,
 } from 'lucide-react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { ApiError, apiFetch } from '../lib/api';
 import { resolveAvatarUrl } from '../lib/avatar';
-import { accessRequestDeliveryPath } from '../lib/accessDelivery';
 import {
   alertVariants,
   contentSwitchVariants,
@@ -61,18 +61,6 @@ function resolveErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-function AccessRequestDeliveryLink({ item }: { item: ClientAccessRequestItem }) {
-  const path = accessRequestDeliveryPath(item.status, item.delivery_token);
-  if (!path) {
-    return null;
-  }
-  return (
-    <Link className="btn-secondary" to={path}>
-      Read one-time credentials
-    </Link>
-  );
-}
-
 function normalizeTab(value: string | null): ProfileTab {
   if (value === 'apps' || value === 'access-requests') {
     return value;
@@ -105,14 +93,13 @@ export default function Profile() {
   const [deliveryResult, setDeliveryResult] =
     useState<ClientCredentialDeliveryResponse | null>(null);
   const [deliveryErrorMsg, setDeliveryErrorMsg] = useState('');
-  const consumedDeliveryTokenRef = useRef<string>('');
+  const [claimingDeliveryRequestId, setClaimingDeliveryRequestId] = useState('');
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
   const searchParams = useMemo(
     () => new URLSearchParams(location.search),
     [location.search]
   );
-  const deliveryTokenFromUrl = searchParams.get('delivery_token') ?? '';
   const activeTab = useMemo(
     () => normalizeTab(searchParams.get('tab')),
     [searchParams]
@@ -192,42 +179,6 @@ export default function Profile() {
       void loadAccessRequests();
     }
   }, [activeTab, loadAccessRequests, loadApplications]);
-
-  useEffect(() => {
-    if (!user || !deliveryTokenFromUrl) {
-      return;
-    }
-    if (consumedDeliveryTokenRef.current === deliveryTokenFromUrl) {
-      return;
-    }
-    consumedDeliveryTokenRef.current = deliveryTokenFromUrl;
-    setDeliveryErrorMsg('');
-
-    void (async () => {
-      try {
-        const response = await apiFetch<ClientCredentialDeliveryResponse>(
-          `/auth/me/access-delivery?token=${encodeURIComponent(deliveryTokenFromUrl)}`
-        );
-        setDeliveryResult(response);
-      } catch (error) {
-        setDeliveryErrorMsg(resolveErrorMessage(error, 'Could not read one-time credentials'));
-      } finally {
-        const nextParams = new URLSearchParams(location.search);
-        nextParams.delete('delivery_token');
-        if (nextParams.get('tab') !== 'access-requests') {
-          nextParams.set('tab', 'access-requests');
-        }
-        const search = nextParams.toString();
-        const nextSearch = search ? `?${search}` : '';
-        if (nextSearch !== location.search) {
-          navigate(
-            { pathname: '/profile', search: nextSearch },
-            { replace: true }
-          );
-        }
-      }
-    })();
-  }, [deliveryTokenFromUrl, location.search, navigate, user]);
 
   const avatarPreview = useMemo(() => resolveAvatarUrl(user?.avatar_url), [user?.avatar_url]);
 
@@ -361,6 +312,35 @@ export default function Profile() {
       setRequestErrorMsg(resolveErrorMessage(error, 'Could not submit the request'));
     } finally {
       setSubmittingRequest(false);
+    }
+  };
+
+  const handleClaimDelivery = async (request: ClientAccessRequestItem) => {
+    if (!request.delivery_available || claimingDeliveryRequestId) {
+      return;
+    }
+    setDeliveryErrorMsg('');
+    setDeliveryResult(null);
+    setClaimingDeliveryRequestId(request.id);
+    try {
+      const response = await apiFetch<ClientCredentialDeliveryResponse>(
+        '/auth/me/access-delivery',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ request_id: request.id }),
+        }
+      );
+      setDeliveryResult(response);
+      setRequests((current) =>
+        current.map((item) =>
+          item.id === request.id ? { ...item, delivery_available: false } : item
+        )
+      );
+    } catch (error) {
+      setDeliveryErrorMsg(resolveErrorMessage(error, 'Could not read one-time credentials'));
+    } finally {
+      setClaimingDeliveryRequestId('');
     }
   };
 
@@ -725,7 +705,15 @@ export default function Profile() {
                     Client Secret:{' '}
                     {deliveryResult.client_secret ? deliveryResult.client_secret : 'No secret for public clients'}
                   </p>
-                  <p>Link expires: {formatDateTime(deliveryResult.expires_at)}</p>
+                  <p>Delivery expires: {formatDateTime(deliveryResult.expires_at)}</p>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setDeliveryResult(null)}
+                  >
+                    <EyeOff size={16} />
+                    <span>I saved it. Hide sensitive values.</span>
+                  </button>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -778,7 +766,21 @@ export default function Profile() {
                       <p>Submitted: {formatDateTime(item.created_at)}</p>
                       {item.resolved_at && <p>Resolved: {formatDateTime(item.resolved_at)}</p>}
                       {item.admin_note && <p>Admin note: {item.admin_note}</p>}
-                      <AccessRequestDeliveryLink item={item} />
+                      {item.delivery_available && (
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          disabled={Boolean(claimingDeliveryRequestId)}
+                          onClick={() => void handleClaimDelivery(item)}
+                        >
+                          <ShieldAlert size={16} />
+                          <span>
+                            {claimingDeliveryRequestId === item.id
+                              ? 'Retrieving...'
+                              : 'Reveal one-time credentials'}
+                          </span>
+                        </button>
+                      )}
                     </motion.li>
                   ))}
                 </motion.ul>

@@ -26,6 +26,7 @@ const storagePolicies = new Map([
   ],
 ])
 const otherPersistencePattern = /\b(sessionStorage|indexedDB|caches\.open|navigator\.serviceWorker)\b/
+const credentialInUrlPattern = /(?:access-delivery\?token=|\/delivery\?token=|searchParams\.get\(['"]delivery_token['"]\)|query\.get\(['"]token['"]\))/
 const localStoragePattern = /\b(?:window\.)?localStorage\b/g
 const localStorageCallPattern = /window\.localStorage\.(getItem|setItem|removeItem)\s*\(([^)]*)\)/g
 const privatePemPattern = /-----BEGIN (?:(?:RSA|EC|OPENSSH|DSA) |ENCRYPTED )?PRIVATE KEY-----/i
@@ -64,6 +65,9 @@ export function artifactFindings(text) {
 
 export function sourceFindings(name, text) {
   const findings = artifactFindings(text).map((finding) => `${name}: ${finding} in source`)
+  if (credentialInUrlPattern.test(text)) {
+    findings.push(`${name}: one-time credential in URL`)
+  }
   if (otherPersistencePattern.test(text)) {
     findings.push(`${name}: unapproved durable browser storage`)
   }

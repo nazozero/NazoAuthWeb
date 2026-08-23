@@ -12,6 +12,7 @@ import './App.css';
 
 const Home = lazy(() => import('./pages/Home'));
 const Auth = lazy(() => import('./pages/Auth'));
+const Setup = lazy(() => import('./pages/Setup'));
 const Security = lazy(() => import('./pages/Security'));
 const Docs = lazy(() => import('./pages/Docs'));
 const Contact = lazy(() => import('./pages/Contact'));
@@ -20,7 +21,6 @@ const Consent = lazy(() => import('./pages/Consent'));
 const Device = lazy(() => import('./pages/Device'));
 const Ciba = lazy(() => import('./pages/Ciba'));
 const Admin = lazy(() => import('./pages/admin/AdminPage'));
-const Delivery = lazy(() => import('./pages/Delivery'));
 
 function RouteLoadingFallback() {
   const { t } = useI18n();
@@ -64,6 +64,7 @@ function MainRoutes() {
               </RequireAuth>
             }
           />
+          <Route path="/setup" element={<Setup />} />
           <Route
             path="/ciba/:authReqId"
             element={
@@ -90,7 +91,6 @@ function MainRoutes() {
               </RequireAuth>
             }
           />
-          <Route path="/delivery" element={<Delivery />} />
         </Routes>
       </Suspense>
     </AnimatePresence>
@@ -101,9 +101,9 @@ function AppShell() {
   const location = useLocation();
   const isIsolatedPage =
     location.pathname === '/consent' ||
+    location.pathname === '/setup' ||
     location.pathname === '/device' ||
-    location.pathname.startsWith('/ciba/') ||
-    location.pathname === '/delivery';
+    location.pathname.startsWith('/ciba/');
 
   return (
     <div className="app-layout">

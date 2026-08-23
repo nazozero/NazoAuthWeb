@@ -19,7 +19,7 @@ By default, development requests use `http://127.0.0.1:8000`.
 To point the web app at a deployed backend:
 
 ```bash
-VITE_API_BASE_URL=https://auth.nazo.run npm run dev
+VITE_API_BASE_URL=https://issuer.example npm run dev
 ```
 
 ## Build
@@ -64,10 +64,10 @@ serve below `https://auth.nazo.run/ui/`. Set `VITE_BASE_PATH` only when deployin
 the same application at a different mount point; the development server remains
 root-mounted by default.
 
-For `auth.nazo.run/ui/`, deploy the contents of `dist/` to the static site root and make sure the reverse proxy either:
+For `issuer.example/ui/`, deploy the contents of `dist/` to the static site root and make sure the reverse proxy either:
 
 - forwards backend API routes to the NazoAuth backend, or
-- builds with `VITE_API_BASE_URL=https://auth.nazo.run` and allows credentialed same-origin requests from `https://auth.nazo.run/ui/`.
+- builds with `VITE_API_BASE_URL=https://issuer.example` and allows credentialed same-origin requests from `https://issuer.example/ui/`.
 
 ## Routes
 
@@ -79,3 +79,8 @@ For `auth.nazo.run/ui/`, deploy the contents of `dist/` to the static site root 
 - `/admin` administrator work surface
 - `/docs` integration notes
 - `/contact` support information
+
+## License
+
+NazoAuth Web is licensed under the
+[GNU Affero General Public License, version 3 or later](LICENSE).
