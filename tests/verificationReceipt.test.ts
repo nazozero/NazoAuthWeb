@@ -21,10 +21,10 @@ const receiptPayload = {
   deployment_id: 'deployment-1',
   runtime_instance_id: 'runtime-1',
   instance_key_id: 'instance-key',
-  tenant_id: '019c8ca2-30a6-7000-8000-000000000005',
-  receipt_id: '019c8ca2-30a6-7000-8000-000000000001',
-  transaction_id: '019c8ca2-30a6-7000-8000-000000000002',
-  issuance_request_jti: '019c8ca2-30a6-7000-8000-000000000006',
+  tenant_id: '00000000-0000-0000-0000-000000000005',
+  receipt_id: '00000000-0000-0000-0000-000000000001',
+  transaction_id: '00000000-0000-0000-0000-000000000002',
+  issuance_request_jti: '00000000-0000-0000-0000-000000000006',
   status: 'verified',
   evidence_context: {
     run_jti: 'run-jti-1',
@@ -309,6 +309,23 @@ test('accepts only the closed verified projection and strips non-display fields'
   }
 });
 
+test('accepts canonical lowercase UUID text without imposing version or variant bits', () => {
+  assert.deepEqual(
+    parseVerificationReceipt({
+      ...receiptPayload,
+      presentation_binding: {
+        ...receiptPayload.presentation_binding,
+        trust_policy: {
+          binding_id: '00000000-0000-0000-0000-000000000007',
+          resource_id: 'openid4vc-policy.v1',
+          resource_digest: digest,
+        },
+      },
+    }),
+    { kind: 'verified', receipt: expectedProjection }
+  );
+});
+
 test('returns one fixed non-secret reason for every parser failure branch', () => {
   const cases: ReadonlyArray<
     readonly [VerificationReceiptFailureReason, unknown]
@@ -492,7 +509,7 @@ test('fails closed on missing, extra, or malformed verification binding fields',
     { ...receiptPayload, tenant_id: '019C8CA2-30A6-7000-8000-000000000005' },
     {
       ...receiptPayload,
-      issuance_request_jti: '019c8ca2-30a6-7000-7000-000000000006',
+      issuance_request_jti: '00000000-0000-0000-0000-00000000000g',
     },
     { ...receiptPayload, intent_sha256: receiptPayload.intent_sha256.toUpperCase() },
     {

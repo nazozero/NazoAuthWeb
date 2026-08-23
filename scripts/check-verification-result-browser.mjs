@@ -41,10 +41,10 @@ function receiptPayload(expiresInMilliseconds = 60_000) {
     deployment_id: 'browser-test-deployment',
     runtime_instance_id: 'browser-test-runtime',
     instance_key_id: 'browser-test-key',
-    tenant_id: '019c8ca2-30a6-7000-8000-000000000005',
-    transaction_id: '019ad2b4-4c9f-7d8e-8abc-1234567890ab',
-    receipt_id: '019ad2b4-4c9f-7d8e-8abc-1234567890ac',
-    issuance_request_jti: '019c8ca2-30a6-7000-8000-000000000006',
+    tenant_id: '00000000-0000-0000-0000-000000000005',
+    transaction_id: '00000000-0000-0000-0000-000000000002',
+    receipt_id: '00000000-0000-0000-0000-000000000001',
+    issuance_request_jti: '00000000-0000-0000-0000-000000000006',
     status: 'verified',
     evidence_context: {
       run_jti: 'browser-test-run',
@@ -58,9 +58,9 @@ function receiptPayload(expiresInMilliseconds = 60_000) {
     presentation_binding: {
       presentation_request_sha256: 'e'.repeat(64),
       trust_policy: {
-        binding_id: null,
-        resource_id: null,
-        resource_digest: null,
+        binding_id: '00000000-0000-0000-0000-000000000007',
+        resource_id: 'openid4vc-policy.v1',
+        resource_digest: '9'.repeat(64),
       },
     },
     intent_sha256: 'f'.repeat(64),

@@ -1,5 +1,6 @@
 const RECEIPT_CAPABILITY_PATTERN = /^[A-Za-z0-9_-]{43}$/;
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const CANONICAL_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/;
 const FILE_IDENTIFIER_PATTERN = /^[A-Za-z0-9._:+-]{1,128}$/;
 const RFC3339_UTC_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
@@ -336,7 +337,7 @@ export function parseVerificationReceipt(
     trustPolicy.resource_digest === null;
   const trustPolicyIsPresent =
     typeof trustPolicy.binding_id === 'string' &&
-    UUID_PATTERN.test(trustPolicy.binding_id) &&
+    CANONICAL_UUID_PATTERN.test(trustPolicy.binding_id) &&
     typeof trustPolicy.resource_id === 'string' &&
     FILE_IDENTIFIER_PATTERN.test(trustPolicy.resource_id) &&
     typeof trustPolicy.resource_digest === 'string' &&
@@ -353,21 +354,23 @@ export function parseVerificationReceipt(
     ['instance-key-id', isNonEmptyString(receipt.instance_key_id)],
     [
       'tenant-id',
-      typeof receipt.tenant_id === 'string' && UUID_PATTERN.test(receipt.tenant_id),
+      typeof receipt.tenant_id === 'string' &&
+        CANONICAL_UUID_PATTERN.test(receipt.tenant_id),
     ],
     [
       'transaction-id',
       typeof receipt.transaction_id === 'string' &&
-        UUID_PATTERN.test(receipt.transaction_id),
+        CANONICAL_UUID_PATTERN.test(receipt.transaction_id),
     ],
     [
       'receipt-id',
-      typeof receipt.receipt_id === 'string' && UUID_PATTERN.test(receipt.receipt_id),
+      typeof receipt.receipt_id === 'string' &&
+        CANONICAL_UUID_PATTERN.test(receipt.receipt_id),
     ],
     [
       'issuance-request-jti',
       typeof receipt.issuance_request_jti === 'string' &&
-        UUID_PATTERN.test(receipt.issuance_request_jti),
+        CANONICAL_UUID_PATTERN.test(receipt.issuance_request_jti),
     ],
     [
       'intent-sha256',
