@@ -3,8 +3,9 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig(({ command }) => ({
-  // Production is mounted below /ui on issuer.example. Keep development at /
-  // while making a build without deployment-specific environment variables safe.
+  // Production is served below https://auth.nazo.run/ui/. Keep the Vite dev
+  // server at the origin root while making a plain `npm run build` produce the
+  // deployable artifact. Deployments may still override this explicitly.
   base: process.env.VITE_BASE_PATH ?? (command === 'build' ? '/ui/' : '/'),
   plugins: [react()],
   build: {
