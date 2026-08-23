@@ -2,17 +2,35 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="referrer" content="no-referrer" />
     <link rel="icon" type="image/png" sizes="32x32" href="%BASE_URL%icons/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="%BASE_URL%icons/favicon-16x16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="%BASE_URL%icons/apple-touch-icon.png" />
     <link rel="manifest" href="%BASE_URL%site.webmanifest" />
     <meta name="theme-color" content="#080b10" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,650;9..40,750&family=Space+Grotesk:wght@500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <script id="conditional-font-loader">
+      (function () {
+        var path = window.location.pathname.replace(/\/+$/, '');
+        var resultPath = '%BASE_URL%verification-result'.replace(/\/+$/, '');
+        if (path === resultPath) return;
+
+        var googleFonts = document.createElement('link');
+        googleFonts.rel = 'preconnect';
+        googleFonts.href = 'https://fonts.googleapis.com';
+        document.head.appendChild(googleFonts);
+
+        var googleStatic = document.createElement('link');
+        googleStatic.rel = 'preconnect';
+        googleStatic.href = 'https://fonts.gstatic.com';
+        googleStatic.crossOrigin = 'anonymous';
+        document.head.appendChild(googleStatic);
+
+        var stylesheet = document.createElement('link');
+        stylesheet.rel = 'stylesheet';
+        stylesheet.href = 'https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,650;9..40,750&family=Space+Grotesk:wght@500;600;700&display=swap';
+        document.head.appendChild(stylesheet);
+      })();
+    </script>
     <meta
       name="description"
       content="NazoAuth sign-in, consent, and OAuth client access interface."
