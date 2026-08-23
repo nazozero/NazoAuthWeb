@@ -6,8 +6,10 @@ import Navbar from './components/Navbar';
 import RequireAuth from './components/RequireAuth';
 import RequireGuest from './components/RequireGuest';
 import Footer from './components/Footer';
+import VerificationResult from './pages/VerificationResult';
 import { I18nProvider, useI18n } from './i18n';
 import { pageVariants } from './lib/motion';
+import { canonicalVerificationResultPath } from './lib/verificationReceipt';
 import './App.css';
 
 const Home = lazy(() => import('./pages/Home'));
@@ -116,16 +118,27 @@ function AppShell() {
   );
 }
 
+function AppRoutes() {
+  const location = useLocation();
+  if (canonicalVerificationResultPath(location.pathname, '/')) {
+    return <VerificationResult />;
+  }
+
+  return (
+    <AuthProvider>
+      <AppShell />
+    </AuthProvider>
+  );
+}
+
 function App() {
   const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || undefined;
 
   return (
     <I18nProvider>
-      <AuthProvider>
-        <BrowserRouter basename={basename}>
-          <AppShell />
-        </BrowserRouter>
-      </AuthProvider>
+      <BrowserRouter basename={basename}>
+        <AppRoutes />
+      </BrowserRouter>
     </I18nProvider>
   );
 }
