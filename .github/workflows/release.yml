@@ -15,7 +15,7 @@ jobs:
   release:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Validate immutable release identity
         shell: bash
         run: |
@@ -50,7 +50,7 @@ jobs:
             -C dist .
           test "$(stat -c %s nazoauth-web.tar.gz)" -le 67108864
       - name: Attest UI archive provenance
-        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: nazoauth-web.tar.gz
       - name: Publish the single UI release artifact
