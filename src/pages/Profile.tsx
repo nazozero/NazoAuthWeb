@@ -34,6 +34,9 @@ import type {
   AuthorizedApp,
   AuthorizedAppsResponse,
   AuthUser,
+  AvatarUploadCapability,
+  AvatarUploadInitiation,
+  AvatarUploadMode,
   ClientAccessRequestItem,
   ClientAccessRequestListResponse,
   ClientCredentialDeliveryResponse,
@@ -80,6 +83,8 @@ export default function Profile() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileErrorMsg, setProfileErrorMsg] = useState('');
   const [profileSuccessMsg, setProfileSuccessMsg] = useState('');
+  const [avatarUploadMode, setAvatarUploadMode] = useState<AvatarUploadMode | null>(null);
+  const [avatarCapabilityError, setAvatarCapabilityError] = useState('');
 
   const [siteName, setSiteName] = useState('');
   const [siteUrl, setSiteUrl] = useState('');
@@ -113,6 +118,34 @@ export default function Profile() {
   useEffect(() => {
     setDisplayName(user?.display_name ?? '');
   }, [user]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAvatarUploadCapability = async () => {
+      try {
+        const capability = await apiFetch<AvatarUploadCapability>('/auth/me/avatar/uploads');
+        if (!cancelled) {
+          setAvatarUploadMode(capability.upload_mode);
+          setAvatarCapabilityError('');
+        }
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 401) {
+          await logout();
+          navigate('/auth', { replace: true });
+          return;
+        }
+        if (!cancelled) {
+          setAvatarCapabilityError('Avatar storage availability could not be loaded. Try again later.');
+        }
+      }
+    };
+
+    void loadAvatarUploadCapability();
+    return () => {
+      cancelled = true;
+    };
+  }, [logout, navigate]);
 
   const updateTab = useCallback(
     (tab: ProfileTab) => {
@@ -212,12 +245,35 @@ export default function Profile() {
         });
       }
       if (avatarFile) {
-        const formData = new FormData();
-        formData.append('avatar', avatarFile);
-        latestUser = await apiFetch<AuthUser>('/auth/me/avatar', {
-          method: 'POST',
-          body: formData,
-        });
+        if (avatarUploadMode === 'multipart') {
+          const formData = new FormData();
+          formData.append('avatar', avatarFile);
+          latestUser = await apiFetch<AuthUser>('/auth/me/avatar', {
+            method: 'POST',
+            body: formData,
+          });
+        } else if (avatarUploadMode === 'direct') {
+          const initiated = await apiFetch<AvatarUploadInitiation>('/auth/me/avatar/uploads', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content_length: avatarFile.size }),
+          });
+          const uploadResponse = await fetch(initiated.upload.url, {
+            method: initiated.upload.method,
+            headers: initiated.upload.headers,
+            body: avatarFile,
+            credentials: 'omit',
+          });
+          if (!uploadResponse.ok) {
+            throw new Error('Avatar file upload failed.');
+          }
+          latestUser = await apiFetch<AuthUser>(
+            `/auth/me/avatar/uploads/${encodeURIComponent(initiated.upload_id)}/complete`,
+            { method: 'POST' }
+          );
+        } else {
+          throw new Error('Avatar storage is unavailable for this tenant. Contact the system administrator.');
+        }
         setAvatarFile(null);
         if (avatarInputRef.current) {
           avatarInputRef.current.value = '';
@@ -238,7 +294,7 @@ export default function Profile() {
   };
 
   const handleRemoveAvatar = async () => {
-    if (!user) {
+    if (!user || (avatarUploadMode !== 'multipart' && avatarUploadMode !== 'direct')) {
       return;
     }
     setProfileErrorMsg('');
@@ -439,14 +495,18 @@ export default function Profile() {
                 id="avatar_file"
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
+                disabled={avatarUploadMode !== 'multipart' && avatarUploadMode !== 'direct'}
                 onChange={(event) => {
                   const file = event.target.files?.[0] ?? null;
                   setAvatarFile(file);
                 }}
               />
               <p className="profile-form-hint">
-                PNG, JPEG, or WEBP only, up to 2MB.
-                {avatarFile ? ` Selected: ${avatarFile.name}` : ''}
+                {avatarUploadMode === 'disabled'
+                  ? 'Avatar storage is unavailable for this tenant. Contact the system administrator.'
+                  : avatarCapabilityError || avatarUploadMode === null
+                    ? avatarCapabilityError || 'Checking avatar storage availability...'
+                    : `PNG, JPEG, or WEBP only, up to 2MB.${avatarFile ? ` Selected: ${avatarFile.name}` : ''}`}
               </p>
 
               <AnimatePresence initial={false}>
@@ -482,7 +542,11 @@ export default function Profile() {
                 <button
                   type="button"
                   className="btn-secondary"
-                  disabled={savingProfile || !user.avatar_url}
+                  disabled={
+                    savingProfile ||
+                    !user.avatar_url ||
+                    (avatarUploadMode !== 'multipart' && avatarUploadMode !== 'direct')
+                  }
                   onClick={() => {
                     void handleRemoveAvatar();
                   }}
