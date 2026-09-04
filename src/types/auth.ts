@@ -8,6 +8,22 @@ export interface AuthUser {
   authorized_app_count: number;
 }
 
+export type AvatarUploadMode = 'disabled' | 'multipart' | 'direct';
+
+export interface AvatarUploadCapability {
+  upload_mode: AvatarUploadMode;
+}
+
+export interface AvatarUploadInitiation {
+  upload_id: string;
+  expires_at: string;
+  upload: {
+    url: string;
+    method: string;
+    headers: Record<string, string>;
+  };
+}
+
 export interface AuthorizedApp {
   client_id: string;
   client_name: string;
