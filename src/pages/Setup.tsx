@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Fingerprint, Lock, Mail, ShieldCheck } from 'lucide-react';
+import { Lock, Mail, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useI18n } from '../i18n';
@@ -11,10 +11,13 @@ import {
 } from '../auth/bootstrap';
 import { ApiError, apiFetch } from '../lib/api';
 import { alertVariants, pageVariants } from '../lib/motion';
+import BrandLogo from '../components/BrandLogo';
 import './Setup.css';
 
 function isExpiredBootstrapClaim(error: unknown): boolean {
-  return error instanceof ApiError && (error.status === 404 || error.status === 410);
+  return (
+    error instanceof ApiError && (error.status === 404 || error.status === 410)
+  );
 }
 
 export default function Setup() {
@@ -79,10 +82,9 @@ export default function Setup() {
       exit="exit"
     >
       <div className="setup-card glass">
-        <div className="setup-mark" aria-hidden="true">
-          <Fingerprint size={28} />
+        <div className="setup-brand">
+          <BrandLogo />
         </div>
-        <p className="setup-kicker">NazoAuth</p>
         <h1>{t('setup.title')}</h1>
         <p className="setup-subtitle">{t('setup.subtitle')}</p>
 
@@ -137,10 +139,16 @@ export default function Setup() {
                 />
               </div>
             </label>
-            <button className="btn-primary setup-submit" type="submit" disabled={submitting || !bootstrap}>
+            <button
+              className="btn-primary setup-submit"
+              type="submit"
+              disabled={submitting || !bootstrap}
+            >
               {submitting ? t('setup.submitting') : t('setup.submit')}
             </button>
-            {!bootstrap && <p className="setup-hint">{t('setup.error.invalidLink')}</p>}
+            {!bootstrap && (
+              <p className="setup-hint">{t('setup.error.invalidLink')}</p>
+            )}
           </form>
         )}
       </div>

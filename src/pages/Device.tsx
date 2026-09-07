@@ -1,3 +1,4 @@
+import BrandLogo from '../components/BrandLogo';
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { buildAuthRedirectWithNext, buildCurrentPath } from '../auth/next';
+import { useI18n } from '../i18n';
 import { ApiError, apiFetch } from '../lib/api';
 import {
   contentSwitchVariants,
@@ -48,6 +50,7 @@ function normalizeUserCode(value: string): string {
 }
 
 export default function Device() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
   const initialUserCode = useMemo(
@@ -100,9 +103,12 @@ export default function Device() {
           return;
         }
         if (error instanceof ApiError && error.status === 401) {
-          navigate(buildAuthRedirectWithNext(buildCurrentPath(window.location)), {
-            replace: true,
-          });
+          navigate(
+            buildAuthRedirectWithNext(buildCurrentPath(window.location)),
+            {
+              replace: true,
+            }
+          );
           return;
         }
         setView(null);
@@ -159,8 +165,8 @@ export default function Device() {
       });
       setResultMsg(
         decision === 'approve'
-          ? 'Device authorization approved. You can return to the device.'
-          : 'Device authorization denied.'
+          ? t('account.ui.deviceAuthorizationApprovedYouCanReturnToTheDevice')
+          : t('account.ui.deviceAuthorizationDenied')
       );
       setView(null);
     } catch (error) {
@@ -179,19 +185,22 @@ export default function Device() {
       exit="exit"
     >
       <div className="device-shell">
+        <div className="authorization-brand">
+          <BrandLogo />
+        </div>
         <motion.section className="device-card glass" layout>
           <header className="device-head">
             <span className="device-icon">
               <RadioTower size={20} />
             </span>
             <div>
-              <h1>Authorize device</h1>
-              <p>Confirm the code shown on your device before granting access.</p>
+              <h1>{t('device.title')}</h1>
+              <p>{t('device.subtitle')}</p>
             </div>
           </header>
 
           <form className="device-code-form" onSubmit={handleLookupSubmit}>
-            <label htmlFor="nazo-device-user-code">User code</label>
+            <label htmlFor="nazo-device-user-code">{t('device.code')}</label>
             <div className="device-code-row">
               <input
                 id="nazo-device-user-code"
@@ -203,9 +212,15 @@ export default function Device() {
                 spellCheck={false}
                 placeholder="ABCD-1234"
               />
-              <button className="btn-secondary" type="submit" disabled={loading}>
+              <button
+                className="btn-secondary"
+                type="submit"
+                disabled={loading}
+              >
                 <KeyRound size={16} />
-                <span>{loading ? 'Checking' : 'Check'}</span>
+                <span>
+                  {loading ? t('device.looking') : t('device.lookup')}
+                </span>
               </button>
             </div>
           </form>
@@ -220,7 +235,7 @@ export default function Device() {
                 animate="animate"
                 exit="exit"
               >
-                Loading device request...
+                {t('account.ui.loadingDeviceRequest')}
               </motion.div>
             )}
 
@@ -265,24 +280,27 @@ export default function Device() {
                 <section className="device-client-box">
                   <div className="device-block-title">
                     <ShieldCheck size={16} />
-                    <span>Requesting client</span>
+                    <span>{t('device.client')}</span>
                   </div>
                   <div className="device-client-grid">
                     <div>
-                      <span>Application</span>
+                      <span>{t('device.application')}</span>
                       <strong>{request.client_name}</strong>
                     </div>
                     <div>
-                      <span>Client ID</span>
+                      <span>{t('account.ui.clientIdLabel')}</span>
                       <strong>{request.client_id}</strong>
                     </div>
                     <div>
-                      <span>Expires</span>
+                      <span>{t('device.expires')}</span>
                       <strong>{formatDateTime(request.expires_at)}</strong>
                     </div>
                     <div>
-                      <span>Polling interval</span>
-                      <strong>{request.interval_seconds}s</strong>
+                      <span>{t('device.interval')}</span>
+                      <strong>
+                        {request.interval_seconds}
+                        {t('account.ui.s')}
+                      </strong>
                     </div>
                   </div>
                 </section>
@@ -290,7 +308,7 @@ export default function Device() {
                 <section className="device-scope-box">
                   <div className="device-block-title">
                     <LockKeyhole size={16} />
-                    <span>Requested permissions</span>
+                    <span>{t('device.permissions')}</span>
                   </div>
                   <motion.ul
                     className="device-chip-list"
@@ -299,18 +317,24 @@ export default function Device() {
                     animate="animate"
                     layout
                   >
-                    {(scopes.length ? scopes : ['No scopes requested']).map((scope) => (
-                      <motion.li key={scope} variants={revealItemVariants} layout>
-                        {scope}
-                      </motion.li>
-                    ))}
+                    {(scopes.length ? scopes : ['No scopes requested']).map(
+                      (scope) => (
+                        <motion.li
+                          key={scope}
+                          variants={revealItemVariants}
+                          layout
+                        >
+                          {scope}
+                        </motion.li>
+                      )
+                    )}
                   </motion.ul>
                 </section>
 
                 <section className="device-scope-box">
                   <div className="device-block-title">
                     <Clock3 size={16} />
-                    <span>Resources</span>
+                    <span>{t('device.resources')}</span>
                   </div>
                   <motion.ul
                     className="device-chip-list resource"
@@ -319,11 +343,17 @@ export default function Device() {
                     animate="animate"
                     layout
                   >
-                    {(resources.length ? resources : ['Default resource']).map((resource) => (
-                      <motion.li key={resource} variants={revealItemVariants} layout>
-                        {resource}
-                      </motion.li>
-                    ))}
+                    {(resources.length ? resources : ['Default resource']).map(
+                      (resource) => (
+                        <motion.li
+                          key={resource}
+                          variants={revealItemVariants}
+                          layout
+                        >
+                          {resource}
+                        </motion.li>
+                      )
+                    )}
                   </motion.ul>
                 </section>
 
@@ -336,7 +366,11 @@ export default function Device() {
                     onClick={() => void submitDecision('deny')}
                   >
                     <CircleSlash size={16} />
-                    <span>{submitting === 'deny' ? 'Denying' : 'Deny'}</span>
+                    <span>
+                      {submitting === 'deny'
+                        ? t('account.ui.denying')
+                        : t('account.ui.deny')}
+                    </span>
                   </button>
                   <button
                     id="nazo-device-approve"
@@ -346,7 +380,11 @@ export default function Device() {
                     onClick={() => void submitDecision('approve')}
                   >
                     <ShieldCheck size={16} />
-                    <span>{submitting === 'approve' ? 'Approving' : 'Approve device'}</span>
+                    <span>
+                      {submitting === 'approve'
+                        ? t('account.ui.approving')
+                        : t('account.ui.approveDevice')}
+                    </span>
                   </button>
                 </div>
               </motion.div>
@@ -355,7 +393,7 @@ export default function Device() {
         </motion.section>
 
         <div className="device-powered">
-          <span>Secured by NazoAuth</span>
+          <span>{t('consent.secured')}</span>
         </div>
       </div>
     </motion.div>

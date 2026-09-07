@@ -1,5 +1,5 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 // https://vite.dev/config/
 export default defineConfig(({ command }) => ({
@@ -23,24 +23,25 @@ export default defineConfig(({ command }) => ({
           ) {
             return 'vendor-react';
           }
-          if (id.includes('/framer-motion/') || id.includes('/motion-dom/') || id.includes('/motion-utils/')) {
+          if (
+            id.includes('/framer-motion/') ||
+            id.includes('/motion-dom/') ||
+            id.includes('/motion-utils/')
+          ) {
             return 'vendor-motion';
           }
           if (id.includes('/lucide-react/')) {
             return 'vendor-icons';
           }
-          if (id.includes('/@marsidev/react-turnstile/')) {
-            return 'vendor-captcha';
-          }
-          if (id.includes('/@gsap/react/') || id.includes('/gsap/')) {
-            return 'vendor-gsap';
-          }
           if (id.includes('/three/')) {
             return 'vendor-three';
+          }
+          if (id.includes('/@marsidev/react-turnstile/')) {
+            return 'vendor-captcha';
           }
           return 'vendor';
         },
       },
     },
   },
-}))
+}));

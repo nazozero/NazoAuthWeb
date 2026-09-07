@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
-import { Mail, Lock, Shield, ArrowRight, Fingerprint } from 'lucide-react';
+import { Mail, Lock, Shield, ArrowRight } from 'lucide-react';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -14,7 +14,7 @@ import CaptchaModal from '../components/CaptchaModal';
 import { useI18n } from '../i18n';
 import { apiFetch } from '../lib/api';
 import { alertVariants, pageVariants } from '../lib/motion';
-import { publicAsset } from '../lib/publicAsset';
+import BrandLogo from '../components/BrandLogo';
 import type { CaptchaConfig } from '../types/auth';
 import './Auth.css';
 
@@ -42,7 +42,9 @@ function normalizeCaptchaConfig(value: unknown): CaptchaConfig {
   return {
     turnstile_enabled: candidate.turnstile_enabled === true,
     turnstile_site_key:
-      typeof candidate.turnstile_site_key === 'string' ? candidate.turnstile_site_key : null,
+      typeof candidate.turnstile_site_key === 'string'
+        ? candidate.turnstile_site_key
+        : null,
     registration_enabled: candidate.registration_enabled !== false,
   };
 }
@@ -62,7 +64,8 @@ export default function Auth() {
   );
 
   const [authState, setAuthState] = useState<AuthState>('login');
-  const [clientPresentation, setClientPresentation] = useState<ClientPresentation | null>(null);
+  const [clientPresentation, setClientPresentation] =
+    useState<ClientPresentation | null>(null);
   const [clientLogoFailed, setClientLogoFailed] = useState(false);
 
   const [email, setEmail] = useState('');
@@ -74,11 +77,14 @@ export default function Auth() {
   const [successMsg, setSuccessMsg] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const [captchaConfig, setCaptchaConfig] =
-    useState<CaptchaConfig>(DEFAULT_CAPTCHA_CONFIG);
+  const [captchaConfig, setCaptchaConfig] = useState<CaptchaConfig>(
+    DEFAULT_CAPTCHA_CONFIG
+  );
   const [captchaConfigLoading, setCaptchaConfigLoading] = useState(true);
   const [captchaModalOpen, setCaptchaModalOpen] = useState(false);
-  const [pendingAction, setPendingAction] = useState<ProtectedAction | null>(null);
+  const [pendingAction, setPendingAction] = useState<ProtectedAction | null>(
+    null
+  );
   const [autoCaptchaRunning, setAutoCaptchaRunning] = useState(false);
   const loginTurnstileRef = useRef<TurnstileInstance | undefined>(undefined);
   const loginCaptchaPromiseRef = useRef<{
@@ -87,7 +93,8 @@ export default function Auth() {
   } | null>(null);
 
   const captchaEnabled =
-    captchaConfig.turnstile_enabled && Boolean(captchaConfig.turnstile_site_key);
+    captchaConfig.turnstile_enabled &&
+    Boolean(captchaConfig.turnstile_site_key);
 
   const clearLoginCaptchaPromise = () => {
     loginCaptchaPromiseRef.current = null;
@@ -176,7 +183,9 @@ export default function Auth() {
     setCaptchaModalOpen(false);
     setAutoCaptchaRunning(false);
     if (loginCaptchaPromiseRef.current) {
-      loginCaptchaPromiseRef.current.reject(new Error(t('auth.error.securityCancelled')));
+      loginCaptchaPromiseRef.current.reject(
+        new Error(t('auth.error.securityCancelled'))
+      );
       clearLoginCaptchaPromise();
     }
   }, [authState, t]);
@@ -184,7 +193,9 @@ export default function Auth() {
   useEffect(
     () => () => {
       if (loginCaptchaPromiseRef.current) {
-        loginCaptchaPromiseRef.current.reject(new Error(t('auth.error.pageInactive')));
+        loginCaptchaPromiseRef.current.reject(
+          new Error(t('auth.error.pageInactive'))
+        );
         clearLoginCaptchaPromise();
       }
     },
@@ -235,30 +246,36 @@ export default function Auth() {
 
     try {
       if (action === 'send-code') {
-        await apiFetch<{ success: boolean; message: string }>('/auth/send-code', {
-          method: 'POST',
-          csrf: 'defer',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email,
-            turnstile_token: turnstileToken,
-          }),
-        });
+        await apiFetch<{ success: boolean; message: string }>(
+          '/auth/send-code',
+          {
+            method: 'POST',
+            csrf: 'defer',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email,
+              turnstile_token: turnstileToken,
+            }),
+          }
+        );
         setSuccessMsg(t('auth.success.codeSent'));
         setCountdown(60);
         return;
       }
 
-      await apiFetch<{ session_id: string; expires_in: number }>('/auth/login', {
-        method: 'POST',
-        csrf: 'defer',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          password,
-          turnstile_token: turnstileToken,
-        }),
-      });
+      await apiFetch<{ session_id: string; expires_in: number }>(
+        '/auth/login',
+        {
+          method: 'POST',
+          csrf: 'defer',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            password,
+            turnstile_token: turnstileToken,
+          }),
+        }
+      );
 
       await refreshSession();
       if (nextAfterLogin) {
@@ -297,7 +314,9 @@ export default function Auth() {
       void requestLoginTurnstileToken()
         .then((token) => performProtectedAction(action, token))
         .catch((error: unknown) => {
-          setErrorMsg(resolveErrorMessage(error, t('auth.error.securityFailed')));
+          setErrorMsg(
+            resolveErrorMessage(error, t('auth.error.securityFailed'))
+          );
         })
         .finally(() => {
           setAutoCaptchaRunning(false);
@@ -394,13 +413,18 @@ export default function Auth() {
       </div>
 
       <div className="auth-shell">
+        <aside className="auth-story" aria-hidden="true">
+          <div className="auth-spectrum">
+            <i />
+            <i />
+            <i />
+          </div>
+        </aside>
         <div className="auth-container">
           <div className="auth-card glass">
             <div className="auth-header">
-              <img src={publicAsset('icons/site-icon-64x64.png')} alt="NazoAuth" className="auth-brand-icon" />
               <div className="auth-kicker">
-                <Fingerprint size={15} />
-                NazoAuth
+                <BrandLogo />
               </div>
               <h2>
                 {authState === 'login' && t('auth.title.login')}
@@ -413,7 +437,10 @@ export default function Auth() {
                 {authState === 'forgot' && t('auth.subtitle.forgot')}
               </p>
               {authState === 'login' && clientPresentation && (
-                <section className="auth-client-presentation" aria-label={t('auth.client.label')}>
+                <section
+                  className="auth-client-presentation"
+                  aria-label={t('auth.client.label')}
+                >
                   {clientPresentation.logo_uri && !clientLogoFailed && (
                     <img
                       src={clientPresentation.logo_uri}
@@ -427,7 +454,8 @@ export default function Auth() {
                   <div className="auth-client-copy">
                     <span>{t('auth.client.continueTo')}</span>
                     <strong>{clientPresentation.client_name}</strong>
-                    {(clientPresentation.policy_uri || clientPresentation.tos_uri) && (
+                    {(clientPresentation.policy_uri ||
+                      clientPresentation.tos_uri) && (
                       <div className="auth-client-links">
                         {clientPresentation.policy_uri && (
                           <a
@@ -505,6 +533,8 @@ export default function Auth() {
                           </div>
                           <input
                             type="email"
+                            aria-label={t('auth.placeholder.email')}
+                            autoComplete="email"
                             className="glass-input code-input-with-btn"
                             placeholder={t('auth.placeholder.email')}
                             value={email}
@@ -514,9 +544,13 @@ export default function Auth() {
                             type="button"
                             className="send-code-btn"
                             onClick={handleSendCode}
-                            disabled={countdown > 0 || submitting || autoCaptchaRunning}
+                            disabled={
+                              countdown > 0 || submitting || autoCaptchaRunning
+                            }
                           >
-                            {countdown > 0 ? t('auth.retryIn', { seconds: countdown }) : t('auth.sendCode')}
+                            {countdown > 0
+                              ? t('auth.retryIn', { seconds: countdown })
+                              : t('auth.sendCode')}
                           </button>
                         </div>
                         <div className="input-group">
@@ -525,6 +559,9 @@ export default function Auth() {
                           </div>
                           <input
                             type="text"
+                            aria-label={t('auth.placeholder.code')}
+                            autoComplete="one-time-code"
+                            inputMode="numeric"
                             className="glass-input"
                             placeholder={t('auth.placeholder.code')}
                             value={code}
@@ -537,15 +574,25 @@ export default function Auth() {
                           </div>
                           <input
                             type="password"
+                            aria-label={t('auth.placeholder.password')}
+                            autoComplete="new-password"
                             className="glass-input"
                             placeholder={t('auth.placeholder.password')}
                             value={password}
-                            onChange={(event) => setPassword(event.target.value)}
+                            onChange={(event) =>
+                              setPassword(event.target.value)
+                            }
                           />
                         </div>
                       </>
                     ) : authState === 'login' ? (
                       <>
+                        <label
+                          className="auth-input-label"
+                          htmlFor="nazo-login-email"
+                        >
+                          {t('auth.placeholder.email')}
+                        </label>
                         <div className="input-group">
                           <div className="input-icon">
                             <Mail size={18} />
@@ -553,6 +600,7 @@ export default function Auth() {
                           <input
                             id="nazo-login-email"
                             name="email"
+                            autoComplete="username"
                             type="email"
                             className="glass-input"
                             placeholder={t('auth.placeholder.email')}
@@ -560,6 +608,12 @@ export default function Auth() {
                             onChange={(event) => setEmail(event.target.value)}
                           />
                         </div>
+                        <label
+                          className="auth-input-label"
+                          htmlFor="nazo-login-password"
+                        >
+                          {t('auth.placeholder.password')}
+                        </label>
                         <div className="input-group">
                           <div className="input-icon">
                             <Lock size={18} />
@@ -567,17 +621,24 @@ export default function Auth() {
                           <input
                             id="nazo-login-password"
                             name="password"
+                            autoComplete="current-password"
                             type="password"
                             className="glass-input"
                             placeholder={t('auth.placeholder.password')}
                             value={password}
-                            onChange={(event) => setPassword(event.target.value)}
+                            onChange={(event) =>
+                              setPassword(event.target.value)
+                            }
                           />
                         </div>
                         <div className="auth-options">
-                          <span className="text-link" onClick={() => setAuthState('forgot')}>
+                          <button
+                            type="button"
+                            className="text-link"
+                            onClick={() => setAuthState('forgot')}
+                          >
                             {t('auth.forgot')}
-                          </span>
+                          </button>
                         </div>
                       </>
                     ) : (
@@ -588,7 +649,12 @@ export default function Auth() {
 
                     <button
                       id="nazo-login-submit"
-                      type="submit"
+                      type={authState === 'forgot' ? 'button' : 'submit'}
+                      onClick={
+                        authState === 'forgot'
+                          ? () => navigate('/contact')
+                          : undefined
+                      }
                       className="btn-primary w-full mt-4"
                       disabled={
                         submitting ||
@@ -604,7 +670,8 @@ export default function Auth() {
                               ? t('auth.button.checking')
                               : t('auth.button.signIn'))}
                         {authState === 'register' && t('auth.button.create')}
-                        {authState === 'forgot' && t('auth.button.contactAdmin')}
+                        {authState === 'forgot' &&
+                          t('auth.button.contactAdmin')}
                       </span>
                       <ArrowRight size={18} />
                     </button>
@@ -617,22 +684,24 @@ export default function Auth() {
               {authState === 'login' ? (
                 <p>
                   {t('auth.needAccess')}
-                  <span
+                  <button
+                    type="button"
                     className="text-link font-bold text-cta"
                     onClick={() => setAuthState('register')}
                   >
                     {t('auth.createAccount')}
-                  </span>
+                  </button>
                 </p>
               ) : (
                 <p>
                   {t('auth.alreadyRegistered')}
-                  <span
+                  <button
+                    type="button"
                     className="text-link font-bold text-secondary"
                     onClick={() => setAuthState('login')}
                   >
                     {t('auth.backToSignIn')}
-                  </span>
+                  </button>
                 </p>
               )}
             </div>
@@ -680,19 +749,21 @@ export default function Auth() {
         </div>
       )}
 
-      {captchaEnabled && captchaConfig.turnstile_site_key && captchaModalOpen && (
-        <CaptchaModal
-          siteKey={captchaConfig.turnstile_site_key}
-          title={t('auth.captchaTitle')}
-          actionLabel={t('auth.captchaAction')}
-          disabled={submitting}
-          onClose={() => {
-            setCaptchaModalOpen(false);
-            setPendingAction(null);
-          }}
-          onVerified={handleCaptchaVerified}
-        />
-      )}
+      {captchaEnabled &&
+        captchaConfig.turnstile_site_key &&
+        captchaModalOpen && (
+          <CaptchaModal
+            siteKey={captchaConfig.turnstile_site_key}
+            title={t('auth.captchaTitle')}
+            actionLabel={t('auth.captchaAction')}
+            disabled={submitting}
+            onClose={() => {
+              setCaptchaModalOpen(false);
+              setPendingAction(null);
+            }}
+            onVerified={handleCaptchaVerified}
+          />
+        )}
     </motion.div>
   );
 }

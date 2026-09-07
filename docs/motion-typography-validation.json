@@ -1,0 +1,69 @@
+{
+  "passed": true,
+  "fonts": [
+    {
+      "family": "DM Sans",
+      "loadedFaces": 1
+    },
+    {
+      "family": "Space Grotesk",
+      "loadedFaces": 1
+    },
+    {
+      "family": "Noto Sans SC",
+      "loadedFaces": 2
+    },
+    {
+      "family": "JetBrains Mono",
+      "loadedFaces": 1
+    }
+  ],
+  "starMotion": {
+    "changedPixels": 26015,
+    "brightPixels": 7603,
+    "totalPixels": 1012000
+  },
+  "starReverse": {
+    "changedPixels": 0,
+    "brightPixels": 7603,
+    "totalPixels": 1012000
+  },
+  "reducedSky": {
+    "changedPixels": 0,
+    "brightPixels": 7667,
+    "totalPixels": 1012000
+  },
+  "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Ti (0x00002D04) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "desktop": {
+    "frames": 129,
+    "medianMs": 16.7,
+    "p95Ms": 17.3,
+    "maxMs": 81.9
+  },
+  "scroll": {
+    "frames": 133,
+    "medianMs": 16.7,
+    "p95Ms": 18.6,
+    "maxMs": 25
+  },
+  "mobileViewport": {
+    "frames": 133,
+    "medianMs": 16.7,
+    "p95Ms": 18.4,
+    "maxMs": 19
+  },
+  "checks": [
+    "pause control removed",
+    "reduced motion",
+    "mobile overflow",
+    "no fallback image download during healthy WebGL",
+    "context loss reveals static wordmark",
+    "one canvas persists across routes",
+    "formed-starfield-return-reverse sequence",
+    "flow stage interaction",
+    "key lifecycle expansion",
+    "8 route render checks",
+    "no uncaught exceptions"
+  ],
+  "note": "Local headless Chrome frame submission intervals; not a physical-phone GPU or presentation benchmark."
+}

@@ -1,3 +1,5 @@
+import { useI18n } from '../../i18n';
+import AdminDialog from '../../components/AdminDialog';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, apiFetch } from '../../lib/api';
 import type {
@@ -41,11 +43,18 @@ function initialDraft(module: RuntimeModuleStatus): ModuleDraft {
 }
 
 function isDirty(draft: ModuleDraft): boolean {
-  return draft.desiredState !== draft.baseDesiredState || Boolean(draft.reason.trim());
+  return (
+    draft.desiredState !== draft.baseDesiredState ||
+    Boolean(draft.reason.trim())
+  );
 }
 
 function actionForMode(mode: RuntimeDesiredMode): RuntimeModuleAction {
-  return mode === 'enabled' ? 'enable' : mode === 'disabled' ? 'disable' : 'inherit';
+  return mode === 'enabled'
+    ? 'enable'
+    : mode === 'disabled'
+      ? 'disable'
+      : 'inherit';
 }
 
 function formatTimestamp(value: string | null): string {
@@ -53,10 +62,15 @@ function formatTimestamp(value: string | null): string {
     return '—';
   }
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', { hour12: false });
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString('zh-CN', { hour12: false });
 }
 
-function isStable(module: RuntimeModuleStatus, acceptedRevision: number): boolean {
+function isStable(
+  module: RuntimeModuleStatus,
+  acceptedRevision: number
+): boolean {
   if (module.actual_state === 'failed') {
     return (module.transition_revision ?? -1) >= acceptedRevision;
   }
@@ -78,10 +92,15 @@ function requiresMfaStepUp(error: unknown): error is ApiError {
   if (!payload || Array.isArray(payload)) {
     return false;
   }
-  return payload.error === 'mfa_step_up_required' || payload.code === 'mfa_step_up_required';
+  return (
+    payload.error === 'mfa_step_up_required' ||
+    payload.code === 'mfa_step_up_required'
+  );
 }
 
 export default function RuntimeModulesPanel() {
+  const { t } = useI18n();
+
   const [modules, setModules] = useState<RuntimeModuleStatus[]>([]);
   const [events, setEvents] = useState<RuntimeModuleEvent[]>([]);
   const [drafts, setDrafts] = useState<Record<string, ModuleDraft>>({});
@@ -102,17 +121,24 @@ export default function RuntimeModulesPanel() {
 
   const loadModules = useCallback(async () => {
     const requestId = ++moduleRequestRef.current;
-    const response = await apiFetch<RuntimeModuleListResponse>('/admin/runtime-modules');
+    const response = await apiFetch<RuntimeModuleListResponse>(
+      '/admin/runtime-modules'
+    );
     if (requestId < appliedModuleRequestRef.current) {
       return response.items;
     }
     appliedModuleRequestRef.current = requestId;
-    setModules((current) => mergeRuntimeModuleStatuses(current, response.items));
+    setModules((current) =>
+      mergeRuntimeModuleStatuses(current, response.items)
+    );
     setDrafts((current) => {
       const next = { ...current };
       for (const module of response.items) {
         const draft = next[module.module_id];
-        if (!draft || (draft.baseRevision !== module.revision && !isDirty(draft))) {
+        if (
+          !draft ||
+          (draft.baseRevision !== module.revision && !isDirty(draft))
+        ) {
           next[module.module_id] = initialDraft(module);
         }
       }
@@ -141,7 +167,8 @@ export default function RuntimeModulesPanel() {
   useEffect(() => {
     const onVisibilityChange = () => setPageVisible(!document.hidden);
     document.addEventListener('visibilitychange', onVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+    return () =>
+      document.removeEventListener('visibilitychange', onVisibilityChange);
   }, []);
 
   useEffect(() => {
@@ -149,7 +176,11 @@ export default function RuntimeModulesPanel() {
     void Promise.all([loadModules(), loadEvents()])
       .catch((caught: unknown) => {
         if (active) {
-          setError(caught instanceof Error ? caught.message : 'Could not load runtime modules.');
+          setError(
+            caught instanceof Error
+              ? caught.message
+              : 'Could not load runtime modules.'
+          );
         }
       })
       .finally(() => {
@@ -166,7 +197,8 @@ export default function RuntimeModulesPanel() {
     (module) =>
       module.actual_state === 'starting' ||
       module.actual_state === 'draining' ||
-      (pending[module.module_id] && !isStable(module, pending[module.module_id].revision))
+      (pending[module.module_id] &&
+        !isStable(module, pending[module.module_id].revision))
   );
 
   useEffect(() => {
@@ -174,20 +206,35 @@ export default function RuntimeModulesPanel() {
       pollAttemptRef.current = 0;
       return;
     }
-    const delay = POLL_DELAYS_MS[Math.min(pollAttemptRef.current, POLL_DELAYS_MS.length - 1)];
+    const delay =
+      POLL_DELAYS_MS[
+        Math.min(pollAttemptRef.current, POLL_DELAYS_MS.length - 1)
+      ];
     const timer = window.setTimeout(() => {
       pollAttemptRef.current += 1;
-      void Promise.all([loadModules(), loadEvents()]).catch((caught: unknown) => {
-        setError(caught instanceof Error ? caught.message : 'Could not refresh runtime modules.');
-      });
+      void Promise.all([loadModules(), loadEvents()]).catch(
+        (caught: unknown) => {
+          setError(
+            caught instanceof Error
+              ? caught.message
+              : 'Could not refresh runtime modules.'
+          );
+        }
+      );
     }, delay);
     return () => window.clearTimeout(timer);
   }, [loadEvents, loadModules, pageVisible, pending, shouldPoll]);
 
-  const updateDraft = (module: RuntimeModuleStatus, patch: Partial<ModuleDraft>) => {
+  const updateDraft = (
+    module: RuntimeModuleStatus,
+    patch: Partial<ModuleDraft>
+  ) => {
     setDrafts((current) => ({
       ...current,
-      [module.module_id]: { ...(current[module.module_id] ?? initialDraft(module)), ...patch },
+      [module.module_id]: {
+        ...(current[module.module_id] ?? initialDraft(module)),
+        ...patch,
+      },
     }));
   };
 
@@ -197,7 +244,11 @@ export default function RuntimeModulesPanel() {
     try {
       await Promise.all([loadModules(), loadEvents()]);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not refresh runtime modules.');
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : 'Could not refresh runtime modules.'
+      );
     } finally {
       setRefreshing(false);
     }
@@ -236,10 +287,14 @@ export default function RuntimeModulesPanel() {
       pollAttemptRef.current = 0;
     } catch (caught) {
       if (isRevisionConflict(caught)) {
-        setError(`${module.module_id} changed on the server. Authoritative state was reloaded.`);
+        setError(
+          `${module.module_id} changed on the server. Authoritative state was reloaded.`
+        );
         try {
           const latest = await loadModules();
-          const authoritative = latest.find((item) => item.module_id === module.module_id);
+          const authoritative = latest.find(
+            (item) => item.module_id === module.module_id
+          );
           if (authoritative) {
             setDrafts((current) => ({
               ...current,
@@ -247,7 +302,10 @@ export default function RuntimeModulesPanel() {
             }));
           }
         } catch (reloadError) {
-          const detail = reloadError instanceof Error ? reloadError.message : 'reload failed';
+          const detail =
+            reloadError instanceof Error
+              ? reloadError.message
+              : 'reload failed';
           setError(
             `${module.module_id} changed on the server, but authoritative reload failed: ${detail}`
           );
@@ -256,7 +314,11 @@ export default function RuntimeModulesPanel() {
         setMfaModuleId(module.module_id);
         setError('');
       } else {
-        setError(caught instanceof Error ? caught.message : 'Could not update runtime module.');
+        setError(
+          caught instanceof Error
+            ? caught.message
+            : 'Could not update runtime module.'
+        );
       }
       setReviewing(null);
     } finally {
@@ -279,7 +341,9 @@ export default function RuntimeModulesPanel() {
       const moduleId = mfaModuleId;
       setMfaCode('');
       setMfaModuleId(null);
-      setNotice(`MFA verified for ${moduleId}; review and confirm the module change again.`);
+      setNotice(
+        `MFA verified for ${moduleId}; review and confirm the module change again.`
+      );
     } catch (caught) {
       setError(mfaStepUpFailureMessage(caught));
       setMfaCode('');
@@ -289,15 +353,22 @@ export default function RuntimeModulesPanel() {
   };
 
   if (loading) {
-    return <p>Loading runtime modules…</p>;
+    return <p>{t('admin.ui.loadingRuntimeModules')}</p>;
   }
 
   return (
-    <section className="admin-card runtime-modules-panel" aria-labelledby="runtime-modules-title">
+    <section
+      className="admin-card runtime-modules-panel"
+      aria-labelledby="runtime-modules-title"
+    >
       <header className="admin-card-head">
         <div>
-          <h2 id="runtime-modules-title">Runtime Modules</h2>
-          <p>Desired intent and observed runtime state are shown separately.</p>
+          <h2 id="runtime-modules-title">{t('admin.ui.runtimeModules')}</h2>
+          <p>
+            {t(
+              'admin.ui.desiredIntentAndObservedRuntimeStateAreShownSeparately'
+            )}
+          </p>
         </div>
         <button
           type="button"
@@ -309,8 +380,16 @@ export default function RuntimeModulesPanel() {
         </button>
       </header>
 
-      {error && <p className="admin-feedback error" role="alert">{error}</p>}
-      {notice && <p className="admin-feedback success" role="status">{notice}</p>}
+      {error && (
+        <p className="admin-feedback error" role="alert">
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p className="admin-feedback success" role="status">
+          {notice}
+        </p>
+      )}
 
       <div className="runtime-module-grid">
         {modules.map((module) => {
@@ -321,37 +400,84 @@ export default function RuntimeModulesPanel() {
             draft.desiredState === module.desired_state ||
             module.allowed_actions.includes(actionForMode(draft.desiredState));
           return (
-            <article className="admin-card runtime-module-card" key={module.module_id}>
+            <article
+              className="admin-card runtime-module-card"
+              key={module.module_id}
+            >
               <header>
                 <h3>{module.description}</h3>
                 <code>{module.module_id}</code>
               </header>
               <dl className="admin-readonly-grid">
-                <div><dt>Domain owner</dt><dd>{moduleDomain(module.module_id)}</dd></div>
-                <div><dt>Desired</dt><dd>{module.desired_state}</dd></div>
-                <div><dt>Resolved inherited value</dt><dd>{module.resolved_enabled ? 'enabled' : 'disabled'}</dd></div>
-                <div><dt>Actual</dt><dd>{actualStateLabel(module.actual_state)}</dd></div>
-                <div><dt>Revision</dt><dd>{module.revision}</dd></div>
-                <div><dt>Transition revision</dt><dd>{module.transition_revision ?? '—'}</dd></div>
-                <div><dt>Applied revision</dt><dd>{module.applied_revision ?? '—'}</dd></div>
-                <div><dt>Disable policy</dt><dd>{disablePolicyLabel(module.disable_policy)}</dd></div>
-                <div><dt>Drain deadline</dt><dd>{formatTimestamp(module.drain_deadline)}</dd></div>
-                <div><dt>Failure</dt><dd>{module.failure_code ?? '—'}</dd></div>
-                <div><dt>Last state update</dt><dd>{formatTimestamp(module.updated_at)}</dd></div>
+                <div>
+                  <dt>{t('admin.ui.domainOwner')}</dt>
+                  <dd>{moduleDomain(module.module_id)}</dd>
+                </div>
+                <div>
+                  <dt>{t('admin.ui.desired')}</dt>
+                  <dd>{module.desired_state}</dd>
+                </div>
+                <div>
+                  <dt>{t('admin.ui.resolvedInheritedValue')}</dt>
+                  <dd>{module.resolved_enabled ? 'enabled' : 'disabled'}</dd>
+                </div>
+                <div>
+                  <dt>{t('admin.ui.actual')}</dt>
+                  <dd>{actualStateLabel(module.actual_state)}</dd>
+                </div>
+                <div>
+                  <dt>{t('admin.ui.revision')}</dt>
+                  <dd>{module.revision}</dd>
+                </div>
+                <div>
+                  <dt>{t('admin.ui.transitionRevision')}</dt>
+                  <dd>{module.transition_revision ?? '—'}</dd>
+                </div>
+                <div>
+                  <dt>{t('admin.ui.appliedRevision')}</dt>
+                  <dd>{module.applied_revision ?? '—'}</dd>
+                </div>
+                <div>
+                  <dt>{t('admin.ui.disablePolicy')}</dt>
+                  <dd>{disablePolicyLabel(module.disable_policy)}</dd>
+                </div>
+                <div>
+                  <dt>{t('admin.ui.drainDeadline')}</dt>
+                  <dd>{formatTimestamp(module.drain_deadline)}</dd>
+                </div>
+                <div>
+                  <dt>{t('admin.ui.failure')}</dt>
+                  <dd>{module.failure_code ?? '—'}</dd>
+                </div>
+                <div>
+                  <dt>{t('admin.ui.lastStateUpdate')}</dt>
+                  <dd>{formatTimestamp(module.updated_at)}</dd>
+                </div>
               </dl>
-              <p><strong>Dependencies:</strong> {module.dependencies.join(', ') || 'None'}</p>
-              <p><strong>Dependents:</strong> {module.dependents.join(', ') || 'None'}</p>
+              <p>
+                <strong>{t('admin.ui.dependencies')}</strong>{' '}
+                {module.dependencies.join(', ') || 'None'}
+              </p>
+              <p>
+                <strong>{t('admin.ui.dependents')}</strong>{' '}
+                {module.dependents.join(', ') || 'None'}
+              </p>
               {accepted && (
                 <p role="status">
-                  HTTP 202 Accepted — transition pending at revision {accepted.revision}. Actual state
-                  remains {actualStateLabel(module.actual_state)} until reconciliation completes.
+                  {t('admin.ui.http202AcceptedTransitionPendingAtRevision')}{' '}
+                  {accepted.revision}
+                  {t('admin.ui.actualStateRemains')}{' '}
+                  {actualStateLabel(module.actual_state)}{' '}
+                  {t('admin.ui.untilReconciliationCompletes')}
                 </p>
               )}
               {draftIsStale && (
                 <p role="alert">
-                  Server revision changed from {draft.baseRevision} to {module.revision} while this
-                  draft was being edited. Review the authoritative state before continuing.
-                  {' '}
+                  {t('admin.ui.serverRevisionChangedFrom')} {draft.baseRevision}{' '}
+                  {t('admin.ui.to')} {module.revision}{' '}
+                  {t(
+                    'admin.ui.whileThisDraftWasBeingEditedReviewTheAuthoritativeStateBeforeContinuing'
+                  )}{' '}
                   <button
                     type="button"
                     className="btn-secondary"
@@ -362,16 +488,20 @@ export default function RuntimeModulesPanel() {
                       }))
                     }
                   >
-                    Reset draft to server state
+                    {t('admin.ui.resetDraftToServerState')}
                   </button>
                 </p>
               )}
               <label>
-                Desired mode for {module.module_id}
+                {t('admin.ui.desiredModeFor')} {module.module_id}
                 <select
                   aria-label={`Desired mode for ${module.module_id}`}
                   value={draft.desiredState}
-                  onChange={(event) => updateDraft(module, { desiredState: event.target.value as RuntimeDesiredMode })}
+                  onChange={(event) =>
+                    updateDraft(module, {
+                      desiredState: event.target.value as RuntimeDesiredMode,
+                    })
+                  }
                 >
                   {DESIRED_MODES.map((mode) => (
                     <option
@@ -388,12 +518,14 @@ export default function RuntimeModulesPanel() {
                 </select>
               </label>
               <label>
-                Reason for {module.module_id}
+                {t('admin.ui.reasonFor')} {module.module_id}
                 <textarea
                   aria-label={`Reason for ${module.module_id}`}
                   maxLength={500}
                   value={draft.reason}
-                  onChange={(event) => updateDraft(module, { reason: event.target.value })}
+                  onChange={(event) =>
+                    updateDraft(module, { reason: event.target.value })
+                  }
                 />
               </label>
               <button
@@ -410,7 +542,7 @@ export default function RuntimeModulesPanel() {
                   setReviewing(module);
                 }}
               >
-                Review {module.module_id} change
+                {t('admin.ui.review')} {module.module_id} {t('admin.ui.change')}
               </button>
             </article>
           );
@@ -418,18 +550,32 @@ export default function RuntimeModulesPanel() {
       </div>
 
       <section className="admin-card" aria-labelledby="runtime-events-title">
-        <h3 id="runtime-events-title">Recent runtime audit events</h3>
-        {events.length === 0 ? <p>No runtime events.</p> : (
+        <h3 id="runtime-events-title">
+          {t('admin.ui.recentRuntimeAuditEvents')}
+        </h3>
+        {events.length === 0 ? (
+          <p>{t('admin.ui.noRuntimeEvents')}</p>
+        ) : (
           <ul>
             {events.map((event) => (
               <li key={event.event_id}>
-                <strong>{eventTypeLabel(event.event_type)}</strong> · {event.module_id} · revision {event.revision}
-                {' · '}{formatTimestamp(event.created_at)}
+                <strong>{eventTypeLabel(event.event_type)}</strong> ·{' '}
+                {event.module_id} {t('admin.ui.revisionInline')}{' '}
+                {event.revision}
+                {' · '}
+                {formatTimestamp(event.created_at)}
                 <br />
-                Actor: {event.actor_id ?? 'system'} · Instance: {event.instance_id ?? '—'} · State:{' '}
-                {event.before_state ?? '—'} → {event.after_state ?? '—'} · Outcome:{' '}
+                {t('admin.ui.actor')} {event.actor_id ?? 'system'}{' '}
+                {t('admin.ui.instance')} {event.instance_id ?? '—'}{' '}
+                {t('admin.ui.state')} {event.before_state ?? '—'} →{' '}
+                {event.after_state ?? '—'} {t('admin.ui.outcome')}{' '}
                 {event.outcome_code ?? '—'}
-                {event.reason ? <><br />Reason: {event.reason}</> : null}
+                {event.reason ? (
+                  <>
+                    <br />
+                    {t('admin.ui.reason')} {event.reason}
+                  </>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -437,34 +583,62 @@ export default function RuntimeModulesPanel() {
       </section>
 
       {reviewing && (
-        <section className="admin-modal" role="dialog" aria-modal="true" aria-label={`Confirm ${reviewing.module_id} change`}>
-          <h3>Confirm runtime module change</h3>
+        <AdminDialog
+          label={`${t('admin.ui.confirm')} ${reviewing.module_id} ${t('admin.ui.change')}`}
+          onDismiss={() => setReviewing(null)}
+        >
+          <h3>{t('admin.ui.confirmRuntimeModuleChange')}</h3>
           <p>
-            {reviewing.module_id}: {reviewing.desired_state} → {drafts[reviewing.module_id]?.desiredState}
+            {reviewing.module_id}: {reviewing.desired_state} →{' '}
+            {drafts[reviewing.module_id]?.desiredState}
           </p>
-          <p>Dependencies: {reviewing.dependencies.join(', ') || 'None'}.</p>
-          <p>Dependents: {reviewing.dependents.join(', ') || 'None'}.</p>
-          <p>Dependent modules are never changed implicitly. Resolve dependency conflicts explicitly.</p>
-          <button type="button" className="btn-secondary" onClick={() => setReviewing(null)}>Cancel</button>
+          <p>
+            {t('admin.ui.dependencies')}{' '}
+            {reviewing.dependencies.join(', ') || 'None'}.
+          </p>
+          <p>
+            {t('admin.ui.dependents')}{' '}
+            {reviewing.dependents.join(', ') || 'None'}.
+          </p>
+          <p>
+            {t(
+              'admin.ui.dependentModulesAreNeverChangedImplicitlyResolveDependencyConflictsExplicitly'
+            )}
+          </p>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => setReviewing(null)}
+          >
+            {t('admin.ui.cancel')}
+          </button>
           <button
             type="button"
             className="btn-primary"
             disabled={savingModule === reviewing.module_id}
             onClick={() => void submitChange(reviewing)}
           >
-            Confirm {reviewing.module_id} change
+            {t('admin.ui.confirm')} {reviewing.module_id} {t('admin.ui.change')}
           </button>
-        </section>
+        </AdminDialog>
       )}
 
       {mfaModuleId && (
-        <section className="admin-modal" role="dialog" aria-modal="true" aria-label="MFA step-up">
-          <h3>Verify recent MFA</h3>
-          <p>The rejected mutation will not be replayed automatically.</p>
+        <AdminDialog
+          label={t('admin.ui.mfaStepUp')}
+          onDismiss={() => {
+            setMfaModuleId(null);
+            setMfaCode('');
+          }}
+        >
+          <h3>{t('admin.ui.verifyRecentMfa')}</h3>
+          <p>
+            {t('admin.ui.theRejectedMutationWillNotBeReplayedAutomatically')}
+          </p>
           <label>
-            MFA code
+            {t('admin.ui.mfaCode')}
             <input
-              aria-label="MFA code"
+              aria-label={t('admin.ui.mfaCode')}
               autoComplete="one-time-code"
               inputMode="numeric"
               value={mfaCode}
@@ -477,9 +651,9 @@ export default function RuntimeModulesPanel() {
             disabled={!mfaCode.trim() || verifyingMfa}
             onClick={() => void verifyMfa()}
           >
-            Verify MFA
+            {t('admin.ui.verifyMfa')}
           </button>
-        </section>
+        </AdminDialog>
       )}
     </section>
   );

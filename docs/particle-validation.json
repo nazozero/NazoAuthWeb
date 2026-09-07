@@ -1,0 +1,36 @@
+{
+  "passed": true,
+  "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Ti (0x00002D04) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "desktop": {
+    "frames": 133,
+    "medianMs": 16.7,
+    "p95Ms": 17,
+    "maxMs": 24
+  },
+  "scroll": {
+    "frames": 133,
+    "medianMs": 16.6,
+    "p95Ms": 19.4,
+    "maxMs": 20.9
+  },
+  "mobileViewport": {
+    "frames": 132,
+    "medianMs": 16.8,
+    "p95Ms": 19.4,
+    "maxMs": 24.6
+  },
+  "checks": [
+    "pause/resume",
+    "reduced motion",
+    "mobile overflow",
+    "no fallback image download during healthy WebGL",
+    "context loss reveals static wordmark",
+    "one canvas persists across routes",
+    "formed-side-return-reverse sequence",
+    "flow stage interaction",
+    "key lifecycle expansion",
+    "8 route render checks",
+    "no uncaught exceptions"
+  ],
+  "note": "Local headless Chrome frame submission intervals; not a physical-phone GPU or presentation benchmark."
+}

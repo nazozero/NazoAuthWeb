@@ -1,7 +1,11 @@
 import { useRef, useState } from 'react';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { AnimatePresence, motion } from 'framer-motion';
-import { alertVariants, modalOverlayVariants, modalPanelVariants } from '../lib/motion';
+import {
+  alertVariants,
+  modalOverlayVariants,
+  modalPanelVariants,
+} from '../lib/motion';
 import './CaptchaModal.css';
 
 interface CaptchaModalProps {

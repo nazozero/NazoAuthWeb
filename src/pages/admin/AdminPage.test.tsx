@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiFetch } from '../../lib/api';
 import { useAuth } from '../../auth/useAuth';
 import AdminPage from './AdminPage';
+import { I18nProvider } from '../../i18n';
 
 vi.mock('../../lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/api')>();
@@ -11,7 +12,9 @@ vi.mock('../../lib/api', async (importOriginal) => {
 });
 
 vi.mock('../../auth/useAuth', () => ({ useAuth: vi.fn() }));
-vi.mock('./RuntimeModulesPanel', () => ({ default: () => <h2>Runtime module controls</h2> }));
+vi.mock('./RuntimeModulesPanel', () => ({
+  default: () => <h2>Runtime module controls</h2>,
+}));
 
 const mockedApiFetch = vi.mocked(apiFetch);
 const mockedUseAuth = vi.mocked(useAuth);
@@ -33,7 +36,9 @@ function renderAdmin(adminLevel: number) {
   });
   return render(
     <MemoryRouter>
-      <AdminPage />
+      <I18nProvider>
+        <AdminPage />
+      </I18nProvider>
     </MemoryRouter>
   );
 }
@@ -41,17 +46,28 @@ function renderAdmin(adminLevel: number) {
 describe('AdminPage runtime module privilege', () => {
   beforeEach(() => {
     mockedApiFetch.mockReset();
-    mockedApiFetch.mockResolvedValue({ total: 0, page: 1, page_size: 20, items: [] });
+    mockedApiFetch.mockResolvedValue({
+      total: 0,
+      page: 1,
+      page_size: 20,
+      items: [],
+    });
   });
 
   it('hides runtime module controls from level-1 administrators', async () => {
     renderAdmin(1);
-    expect(await screen.findByRole('heading', { name: /User management/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Runtime Modules' })).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: /User management/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Runtime Modules' })
+    ).not.toBeInTheDocument();
   });
 
   it('shows runtime module controls to level-2 administrators', async () => {
     renderAdmin(2);
-    expect(await screen.findByRole('button', { name: 'Runtime Modules' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'Runtime Modules' })
+    ).toBeInTheDocument();
   });
 });

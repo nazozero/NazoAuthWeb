@@ -1,0 +1,393 @@
+{
+  "passed": true,
+  "files": [
+    {
+      "path": "/ui/assets/AdminPage-u_Z7MjwX.css",
+      "status": 200,
+      "bytes": 5296,
+      "sha256": "6a7c72a585d637203bbce885c020dd3f73fc1c540ac5b508d002eb12b8512bec",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Auth-DqGqTajL.css",
+      "status": 200,
+      "bytes": 2595,
+      "sha256": "947030c85e790a6637da5473d7ae3bcc5ba15c3ec4016595a32295eb92aeec67",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Auth-BKmrt-Z1.js",
+      "status": 200,
+      "bytes": 13038,
+      "sha256": "ba2bbaba5018b46f32570fc0183326e7d17f05a0927d74a972bc8695d664dcb2",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/AdminPage-FAYLKcva.js",
+      "status": 200,
+      "bytes": 37088,
+      "sha256": "967e60a7c3e4f20441881cd6d1c591171be8b6e1d75392b836d34953d60961cb",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Ciba-CLGxtOz-.js",
+      "status": 200,
+      "bytes": 5914,
+      "sha256": "e1929814f0345fb3ca9f8e8e8579043656c330c59610a42d47abbceedd197670",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/auth-k7VYFSdD.js",
+      "status": 200,
+      "bytes": 222,
+      "sha256": "29899c108d120b96415a32e1c21cb9e31a1a97a32573b54e8fb81bc74e645a08",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Ciba-ChXRwYCC.css",
+      "status": 200,
+      "bytes": 5882,
+      "sha256": "5f38ab85a8112a25b94863a258abc13821a893e4b0c322d02576acf5e529bfff",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Consent-C-wYX1rz.js",
+      "status": 200,
+      "bytes": 6960,
+      "sha256": "df57fe5fbc535787c9aa5cf703fb75011b2f728d62e994dfd1bb4241d251577d",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Contact-B3LsSSe5.css",
+      "status": 200,
+      "bytes": 1934,
+      "sha256": "f4cfe1c75332f5721854e21a47e6affcfbe0b3347448d8e3c64c5fda82d2f7d6",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Device-C2e6jANb.js",
+      "status": 200,
+      "bytes": 6520,
+      "sha256": "90e73efcd570d0fa3408a6db93c95f246bc904158a39c49a224e4247151e9277",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Contact-o1ipQ3hh.js",
+      "status": 200,
+      "bytes": 2032,
+      "sha256": "6b76ac16fbba067751ccbb0eed64b40cfbe9247433e7ae25c2f120246c41b7e4",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Docs-CO3Xnod-.js",
+      "status": 200,
+      "bytes": 129582,
+      "sha256": "9172acc08a650ccce7fac1960a07f2862d69e2a674c1a54242e9e79fa802ab46",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Home-ifq3e7lz.css",
+      "status": 200,
+      "bytes": 16561,
+      "sha256": "179a4a83bdbc4affab7e5ac5c11c756acdae29d3f761f77fd5d388dc50b6be75",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Docs-Rk2Dnqjn.css",
+      "status": 200,
+      "bytes": 12936,
+      "sha256": "5256fea337be42a3d708328368268eb804c97328fb6956fdf003b162bfd28306",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Home-CBXtjxAE.js",
+      "status": 200,
+      "bytes": 23348,
+      "sha256": "45d81203115b2b2a212e53788066bed6f93f2d3f43ff1c4f878f395d1ae128ca",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/index-CUV7mb9M.css",
+      "status": 200,
+      "bytes": 14115,
+      "sha256": "a177db8693bb312498e35784cf7c9ec51c0e3313ba81dc3fc07ea5ed78f68b16",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/nebulaScene-Dl_s6eSZ.js",
+      "status": 200,
+      "bytes": 6678,
+      "sha256": "47d678a9ad889a0c3dc070dd4ddb26cc3e473e40eee1badd7d1806aa2a716594",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/NotFound-D4rYHU6Z.js",
+      "status": 200,
+      "bytes": 851,
+      "sha256": "f89d7017241a0236ef07e722fa8b9f8c98ac324967feedeecc55dc52f5a513d4",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/index-DeSU7p9F.js",
+      "status": 200,
+      "bytes": 62224,
+      "sha256": "09d8f04474ddb034e35d1405e0b26291902957b2ede1d74c939ed33c1d8cb521",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Profile-D0DK64PY.js",
+      "status": 200,
+      "bytes": 15407,
+      "sha256": "17e5ebec8dabcea1dd6784c46e5a28d2b81536868eff119937613c95c43bb853",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Profile-XiscKFfJ.css",
+      "status": 200,
+      "bytes": 4198,
+      "sha256": "0aff462684cfdc7ae65beb7e323443c5bd12749000bffae4bd01906f5b28c2af",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/rolldown-runtime-B0Z9INg1.js",
+      "status": 200,
+      "bytes": 901,
+      "sha256": "5e9b0d884d2ebb14e241ab38b43e41efb61bce2e74d71507b0b95b264fba4047",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Security-8vJbA7CZ.js",
+      "status": 200,
+      "bytes": 4420,
+      "sha256": "53dad2a5988e7d1ff55107bae1a9bfdeaf4f8bb1b4a203a92b665eebf121c139",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Security-CrgpzZx0.css",
+      "status": 200,
+      "bytes": 2839,
+      "sha256": "655381fd4be67f2b4ad2ac5912753841e09752e255c6b20bfc36e08c90df720f",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Setup-C_cq_60T.js",
+      "status": 200,
+      "bytes": 4108,
+      "sha256": "5e45551802ec9cb82ccaa46bf4273f4e32c885e49925da9924854dfa3b617b16",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/vendor-DETrBFsU.js",
+      "status": 200,
+      "bytes": 3566,
+      "sha256": "61a6f00bf24fda19d4502546ee7b033f780c0efdc5d0fff15556b9dbe678ebda",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/vendor-captcha-C3jumzh-.js",
+      "status": 200,
+      "bytes": 14089,
+      "sha256": "be7419066c876c99ced2cbf8d302c536d21de338a1dd05e310ecd8068361ed73",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/vendor-icons-D4mZ_Bfx.js",
+      "status": 200,
+      "bytes": 14327,
+      "sha256": "c3ac2dcab230b1e947553fdf8e1e55e2dd223aa8aa069ac2faa2694444a9ae49",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/vendor-motion-fnKm0K3Z.js",
+      "status": 200,
+      "bytes": 125202,
+      "sha256": "2cb6b0d152afb06a4aee3f2f64f43083295c4f4fbd5848ad609ada6c4548f0fb",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/vendor-react-BBoik-WT.js",
+      "status": 200,
+      "bytes": 217534,
+      "sha256": "5004743aa31d31f7cdfdc97f7014355df4e1a7b38e55df8df090a37e57a5f007",
+      "ok": true
+    },
+    {
+      "path": "/ui/icons/android-chrome-192x192.png",
+      "status": 200,
+      "bytes": 95355,
+      "sha256": "3932d684b047431fea506b8ea243af3e9d9699dc17ca9ad1a616db7d37768783",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/vendor-three-KnMzNlb7.js",
+      "status": 200,
+      "bytes": 515258,
+      "sha256": "b249d6f04dec02b1d0dec89322c5d0459f41973d3ee80edf8c7d62aad9e94ff8",
+      "ok": true
+    },
+    {
+      "path": "/ui/icons/default-avatar.svg",
+      "status": 200,
+      "bytes": 563,
+      "sha256": "579966755c97af7f4afe8a89701d0407ca2abf3f522e756e75e1efdb336b64a0",
+      "ok": true
+    },
+    {
+      "path": "/ui/icons/favicon-16x16.png",
+      "status": 200,
+      "bytes": 1001,
+      "sha256": "184a00c0971ff2b143ffef7be82e5c34175d61129605729afa5644af90b3ec79",
+      "ok": true
+    },
+    {
+      "path": "/ui/icons/apple-touch-icon.png",
+      "status": 200,
+      "bytes": 85063,
+      "sha256": "eb2683eddb3991aa3798e1061862b2582d11f8fca1f872b592cf0d5641abe9a9",
+      "ok": true
+    },
+    {
+      "path": "/ui/icons/android-chrome-512x512.png",
+      "status": 200,
+      "bytes": 516190,
+      "sha256": "eb213613871813a4f036cbc2f7f9aea9e352d4744878880151d947d6484171fb",
+      "ok": true
+    },
+    {
+      "path": "/ui/icons/favicon-32x32.png",
+      "status": 200,
+      "bytes": 3261,
+      "sha256": "fc416399425202ce513dd920723e496fff4bce924bdd6cbaf5ee05fe614089ac",
+      "ok": true
+    },
+    {
+      "path": "/ui/icons/site-icon-64x64.png",
+      "status": 200,
+      "bytes": 12400,
+      "sha256": "53cfa91446128c3e0c1478360031fe8b6dab3833d0bc4e4644865049b6bf7a93",
+      "ok": true
+    },
+    {
+      "path": "/ui/index.html",
+      "status": 200,
+      "bytes": 9232,
+      "sha256": "2ef36c10b483ccf2e6169fb6ac7e145dcb54522116858d79048f3e5daeb06338",
+      "ok": true
+    },
+    {
+      "path": "/ui/site.webmanifest",
+      "status": 200,
+      "bytes": 401,
+      "sha256": "51f828113163bc18f9049f360554b46b6394932d2ac690aa716d7ebde4c68351",
+      "ok": true
+    },
+    {
+      "path": "/ui/identity-core.png",
+      "status": 200,
+      "bytes": 1786944,
+      "sha256": "bde645c0135c923599d7bbdaf686ff261d63996011f798bf5734e70df186def9",
+      "ok": true
+    },
+    {
+      "path": "/ui/starfield-nebula.png",
+      "status": 200,
+      "bytes": 2414625,
+      "sha256": "693932b644d47693d483567e127e41b6d8474828cb9d3d4853594b313106496e",
+      "ok": true
+    }
+  ],
+  "routes": [
+    {
+      "path": "/ui/",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/auth",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/docs",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/security",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/contact",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/profile",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/admin",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/consent",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/device",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/setup",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/ciba/deployment-check",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/verification-result",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/deployment-probe-missing.js",
+      "status": 404,
+      "ok": true
+    },
+    {
+      "path": "/ui/deployment-probe-missing.png",
+      "status": 404,
+      "ok": true
+    },
+    {
+      "path": "/ui",
+      "status": 308,
+      "location": "https://auth.nazo.run/ui/",
+      "ok": true
+    }
+  ],
+  "health": {
+    "status": "ready",
+    "checks": {
+      "database": {
+        "status": "up"
+      },
+      "transient_state": {
+        "status": "up"
+      },
+      "signing_keys": {
+        "status": "up"
+      }
+    }
+  },
+  "discoveryUnchanged": true,
+  "checkedAt": "2026-09-07T03:58:03.540Z"
+}

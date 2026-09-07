@@ -1,0 +1,379 @@
+{
+  "passed": true,
+  "files": [
+    {
+      "path": "/ui/assets/AdminPage-e703gBTW.css",
+      "status": 200,
+      "bytes": 5336,
+      "sha256": "0292047a63169ee50445efb260cd706c89ac806c19e2d99054d05de7c878c5a8",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Auth-GbaEYVw7.js",
+      "status": 200,
+      "bytes": 13038,
+      "sha256": "60e5437bfba53a7b6b1e1eeed95d5db98de8cc6050346b4cd2563ef7868dcd96",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Auth-BqihHwKF.css",
+      "status": 200,
+      "bytes": 2625,
+      "sha256": "ac995f77f92dd4dff67e28016a0afedb2aa9609b5995ab8745877d142a1bd3e7",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/AdminPage-CIOLsy9F.js",
+      "status": 200,
+      "bytes": 37088,
+      "sha256": "501646fffcfc7dc1270ea0b93d7022752f73e3c66887bb5e3a91d250a2521467",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/auth-k7VYFSdD.js",
+      "status": 200,
+      "bytes": 222,
+      "sha256": "29899c108d120b96415a32e1c21cb9e31a1a97a32573b54e8fb81bc74e645a08",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Ciba-CJmAE1Me.js",
+      "status": 200,
+      "bytes": 5914,
+      "sha256": "7234ebc400f102907c66e8d54350b17b20852c5e9a55de9d5643ab0fddc9acfd",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Ciba-DrLBWRxP.css",
+      "status": 200,
+      "bytes": 5878,
+      "sha256": "bae1819a97fd8be777f583f28441b00d5316d5e1a355036701d37f768d8d6b3d",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Consent-J3ienmUC.js",
+      "status": 200,
+      "bytes": 6959,
+      "sha256": "f27fd2c87314c11c5eec6c00f4d6b55dca18c8fbd6163f898084ba4e6973b0c1",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Contact-47IyFPus.css",
+      "status": 200,
+      "bytes": 2649,
+      "sha256": "6f377cd082c15c6ed986a21513e859ca67f6314d98db064906bd69aa6c9d9184",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Contact-o_Kf6fSm.js",
+      "status": 200,
+      "bytes": 3141,
+      "sha256": "dd655447967984f08a4d308e179ed0bf90ee58d9e913450a4a6a9b7dbfbea521",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Device-B0UqHJMU.js",
+      "status": 200,
+      "bytes": 6515,
+      "sha256": "3a60ce0139372ec0262c4b8dc59e6cca9299c561088c51a279949dd2833e210a",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Docs-DanziQ-k.css",
+      "status": 200,
+      "bytes": 12128,
+      "sha256": "892556dfe8afe13ad51d7516f20e1d0340e341e8773ed0cb7055d92267c4aebf",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Docs-CjuxxJA3.js",
+      "status": 200,
+      "bytes": 129462,
+      "sha256": "6e2e30abd480375ba3f66a18876fd1e9dfd11fd79fdc6dcb884dd982e93e743f",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Home-9eLjOUj-.css",
+      "status": 200,
+      "bytes": 18251,
+      "sha256": "70337eb7309a3a648bdbaeaf128b00b68b9fcb412a5e20405caa5d65a623d096",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Home-B8f4Lcf6.js",
+      "status": 200,
+      "bytes": 26792,
+      "sha256": "0f528595c882a11f3507551a7e611e5e3f33cc9d0e99b6b1811adafe854fc92e",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/index-COYf3bTz.js",
+      "status": 200,
+      "bytes": 63397,
+      "sha256": "92fc4036872e8a83a7094fbb929901cdf695057cb65322f0b1cc7b1a78f800e8",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/index-QRaU8Zm4.css",
+      "status": 200,
+      "bytes": 15743,
+      "sha256": "2c4f2db4f55e5c1c52b5e77650f194846b69a13d7e50d321044043951c2fd1a1",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/nebulaScene-CEIL9hkZ.js",
+      "status": 200,
+      "bytes": 6045,
+      "sha256": "e3bf1c9c32471fc28fac73ce954dc56ae89dbc97b6a09ebef6abe44e4316ec56",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/NotFound-D-KKOKns.js",
+      "status": 200,
+      "bytes": 851,
+      "sha256": "20b73a3032d321e56d6b0d8e608f8b85e14ca0cdc8ab06060569d1f418a6b0da",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Profile-B6MzPOOl.js",
+      "status": 200,
+      "bytes": 15407,
+      "sha256": "f887635054ef3c0e14d937f8419c250b34b54db65fc8e459b43d6db49e2ef0e8",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Profile-CQJADA_n.css",
+      "status": 200,
+      "bytes": 4220,
+      "sha256": "dba4f2d41a862aebba9e518f5a885c8cb61f1672165ec71a8722d0b678b3d8b6",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/rolldown-runtime-B0Z9INg1.js",
+      "status": 200,
+      "bytes": 901,
+      "sha256": "5e9b0d884d2ebb14e241ab38b43e41efb61bce2e74d71507b0b95b264fba4047",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Security-BOcokmVW.css",
+      "status": 200,
+      "bytes": 4137,
+      "sha256": "f8da9fe3f794603426d6aec5963e8bf1d7e541c5aa752d5480af820c04a84292",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Security-BqJqDXXl.js",
+      "status": 200,
+      "bytes": 6211,
+      "sha256": "fb23c1cebf0bfa7cffd58f61ca57d1f026dfa77f6e2cb0e0003164f560ccd9d6",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/Setup-CQMpz-WG.js",
+      "status": 200,
+      "bytes": 4108,
+      "sha256": "80de629c9c3e1d03bd3b7d55dd10e44499888520737594e2511e6ebe0b4cc774",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/vendor-captcha-C3jumzh-.js",
+      "status": 200,
+      "bytes": 14089,
+      "sha256": "be7419066c876c99ced2cbf8d302c536d21de338a1dd05e310ecd8068361ed73",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/vendor-DETrBFsU.js",
+      "status": 200,
+      "bytes": 3566,
+      "sha256": "61a6f00bf24fda19d4502546ee7b033f780c0efdc5d0fff15556b9dbe678ebda",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/vendor-icons-BqBYussz.js",
+      "status": 200,
+      "bytes": 14036,
+      "sha256": "90a0c096043ead1622809d66a8dc7f0d6926303dd0c245ae3179660ea0d63059",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/vendor-motion-fnKm0K3Z.js",
+      "status": 200,
+      "bytes": 125202,
+      "sha256": "2cb6b0d152afb06a4aee3f2f64f43083295c4f4fbd5848ad609ada6c4548f0fb",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/vendor-react-BBoik-WT.js",
+      "status": 200,
+      "bytes": 217534,
+      "sha256": "5004743aa31d31f7cdfdc97f7014355df4e1a7b38e55df8df090a37e57a5f007",
+      "ok": true
+    },
+    {
+      "path": "/ui/icons/android-chrome-192x192.png",
+      "status": 200,
+      "bytes": 95355,
+      "sha256": "3932d684b047431fea506b8ea243af3e9d9699dc17ca9ad1a616db7d37768783",
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/vendor-three-BO_-aaBm.js",
+      "status": 200,
+      "bytes": 515250,
+      "sha256": "d3c08477c0182487c68cd0eeec04d560bb2b6f0d9282d74bd292f53d3bc88b54",
+      "ok": true
+    },
+    {
+      "path": "/ui/icons/default-avatar.svg",
+      "status": 200,
+      "bytes": 563,
+      "sha256": "579966755c97af7f4afe8a89701d0407ca2abf3f522e756e75e1efdb336b64a0",
+      "ok": true
+    },
+    {
+      "path": "/ui/icons/favicon-16x16.png",
+      "status": 200,
+      "bytes": 1001,
+      "sha256": "184a00c0971ff2b143ffef7be82e5c34175d61129605729afa5644af90b3ec79",
+      "ok": true
+    },
+    {
+      "path": "/ui/icons/apple-touch-icon.png",
+      "status": 200,
+      "bytes": 85063,
+      "sha256": "eb2683eddb3991aa3798e1061862b2582d11f8fca1f872b592cf0d5641abe9a9",
+      "ok": true
+    },
+    {
+      "path": "/ui/icons/android-chrome-512x512.png",
+      "status": 200,
+      "bytes": 516190,
+      "sha256": "eb213613871813a4f036cbc2f7f9aea9e352d4744878880151d947d6484171fb",
+      "ok": true
+    },
+    {
+      "path": "/ui/icons/favicon-32x32.png",
+      "status": 200,
+      "bytes": 3261,
+      "sha256": "fc416399425202ce513dd920723e496fff4bce924bdd6cbaf5ee05fe614089ac",
+      "ok": true
+    },
+    {
+      "path": "/ui/icons/site-icon-64x64.png",
+      "status": 200,
+      "bytes": 12400,
+      "sha256": "53cfa91446128c3e0c1478360031fe8b6dab3833d0bc4e4644865049b6bf7a93",
+      "ok": true
+    },
+    {
+      "path": "/ui/index.html",
+      "status": 200,
+      "bytes": 9487,
+      "sha256": "58cb48c93c0ac98e6339f75a16896fe5bb58751ad95f9b7ed61488120a48115c",
+      "ok": true
+    },
+    {
+      "path": "/ui/site.webmanifest",
+      "status": 200,
+      "bytes": 401,
+      "sha256": "51f828113163bc18f9049f360554b46b6394932d2ac690aa716d7ebde4c68351",
+      "ok": true
+    }
+  ],
+  "routes": [
+    {
+      "path": "/ui/",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/auth",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/docs",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/security",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/contact",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/profile",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/admin",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/consent",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/device",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/setup",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/ciba/deployment-check",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/verification-result",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/ui/assets/deployment-probe-missing.js",
+      "status": 404,
+      "ok": true
+    },
+    {
+      "path": "/ui/deployment-probe-missing.png",
+      "status": 404,
+      "ok": true
+    },
+    {
+      "path": "/ui",
+      "status": 308,
+      "location": "https://auth.nazo.run/ui/",
+      "ok": true
+    }
+  ],
+  "health": {
+    "status": "ready",
+    "checks": {
+      "database": {
+        "status": "up"
+      },
+      "transient_state": {
+        "status": "up"
+      },
+      "signing_keys": {
+        "status": "up"
+      }
+    }
+  },
+  "discoveryUnchanged": true,
+  "checkedAt": "2026-09-07T05:53:43.964Z"
+}

@@ -1,3 +1,4 @@
+import { I18nProvider } from '../../i18n';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -60,16 +61,29 @@ describe('RuntimeModulesPanel', () => {
 
   it('sends the revision-safe tri-state request and renders 202 as pending', async () => {
     const user = userEvent.setup();
-    render(<RuntimeModulesPanel />);
+    render(
+      <I18nProvider>
+        <RuntimeModulesPanel />
+      </I18nProvider>
+    );
 
-    await screen.findByRole('heading', { name: /Client Initiated Backchannel Authentication/i });
-    await user.selectOptions(screen.getByLabelText('Desired mode for ciba'), 'inherit');
+    await screen.findByRole('heading', {
+      name: /Client Initiated Backchannel Authentication/i,
+    });
+    await user.selectOptions(
+      screen.getByLabelText('Desired mode for ciba'),
+      'inherit'
+    );
     await user.type(
       screen.getByLabelText('Reason for ciba'),
       'Return CIBA to deployment configuration'
     );
-    await user.click(screen.getByRole('button', { name: 'Review ciba change' }));
-    await user.click(screen.getByRole('button', { name: 'Confirm ciba change' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Review ciba change' })
+    );
+    await user.click(
+      screen.getByRole('button', { name: 'Confirm ciba change' })
+    );
 
     await waitFor(() => {
       expect(mockedApiFetch).toHaveBeenCalledWith(
@@ -85,18 +99,32 @@ describe('RuntimeModulesPanel', () => {
         })
       );
     });
-    expect(screen.getAllByText(/HTTP 202 Accepted.*transition pending at revision 8/i)).not.toHaveLength(0);
+    expect(
+      screen.getAllByText(
+        /HTTP 202 Accepted.*transition pending at revision 8/i
+      )
+    ).not.toHaveLength(0);
     expect(screen.getByText('Enabled')).toBeInTheDocument();
     expect(screen.queryByText(/change completed/i)).not.toBeInTheDocument();
   });
 
   it('shows explicit cross-domain ownership and transition revision', async () => {
-    render(<RuntimeModulesPanel />);
+    render(
+      <I18nProvider>
+        <RuntimeModulesPanel />
+      </I18nProvider>
+    );
 
-    await screen.findByRole('heading', { name: /Client Initiated Backchannel Authentication/i });
+    await screen.findByRole('heading', {
+      name: /Client Initiated Backchannel Authentication/i,
+    });
     expect(screen.getByText('OAuth and OIDC extensions')).toBeInTheDocument();
-    expect(screen.getByText('Transition revision').parentElement).toHaveTextContent('7');
-    expect(screen.queryByLabelText(/Cascade dependency changes/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByText('Transition revision').parentElement
+    ).toHaveTextContent('7');
+    expect(
+      screen.queryByLabelText(/Cascade dependency changes/i)
+    ).not.toBeInTheDocument();
   });
 
   it('shows stale audit events with actor, instance, state, outcome, and timestamp evidence', async () => {
@@ -129,11 +157,23 @@ describe('RuntimeModulesPanel', () => {
       throw new Error(`unexpected request: ${path}`);
     });
 
-    render(<RuntimeModulesPanel />);
+    render(
+      <I18nProvider>
+        <RuntimeModulesPanel />
+      </I18nProvider>
+    );
 
-    expect(await screen.findByText('Stale transition discarded')).toBeInTheDocument();
-    expect(screen.getByText(/Actor: admin-1.*Instance: server-a.*draining.*revision_changed/)).toBeInTheDocument();
-    expect(screen.getByText(/Reason: superseded by revision 9/)).toBeInTheDocument();
+    expect(
+      await screen.findByText('Stale transition discarded')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Actor: admin-1.*Instance: server-a.*draining.*revision_changed/
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Reason: superseded by revision 9/)
+    ).toBeInTheDocument();
   });
 
   it('performs MFA step-up without replaying the rejected mutation', async () => {
@@ -145,7 +185,9 @@ describe('RuntimeModulesPanel', () => {
         return { total: 0, page: 1, page_size: 20, items: [] };
       }
       if (path === '/admin/runtime-modules/ciba' && init?.method === 'PATCH') {
-        throw new ApiError('Recent MFA is required', 403, { error: 'mfa_step_up_required' });
+        throw new ApiError('Recent MFA is required', 403, {
+          error: 'mfa_step_up_required',
+        });
       }
       if (path === '/auth/me/mfa/step-up' && init?.method === 'POST') {
         return { csrf_token: 'rotated-csrf' };
@@ -153,20 +195,39 @@ describe('RuntimeModulesPanel', () => {
       throw new Error(`unexpected request: ${path}`);
     });
     const user = userEvent.setup();
-    render(<RuntimeModulesPanel />);
+    render(
+      <I18nProvider>
+        <RuntimeModulesPanel />
+      </I18nProvider>
+    );
 
-    await screen.findByRole('heading', { name: /Client Initiated Backchannel Authentication/i });
-    await user.selectOptions(screen.getByLabelText('Desired mode for ciba'), 'inherit');
-    await user.type(screen.getByLabelText('Reason for ciba'), 'Reconfirm CIBA configuration');
-    await user.click(screen.getByRole('button', { name: 'Review ciba change' }));
-    await user.click(screen.getByRole('button', { name: 'Confirm ciba change' }));
+    await screen.findByRole('heading', {
+      name: /Client Initiated Backchannel Authentication/i,
+    });
+    await user.selectOptions(
+      screen.getByLabelText('Desired mode for ciba'),
+      'inherit'
+    );
+    await user.type(
+      screen.getByLabelText('Reason for ciba'),
+      'Reconfirm CIBA configuration'
+    );
+    await user.click(
+      screen.getByRole('button', { name: 'Review ciba change' })
+    );
+    await user.click(
+      screen.getByRole('button', { name: 'Confirm ciba change' })
+    );
     await user.type(await screen.findByLabelText('MFA code'), '123456');
     await user.click(screen.getByRole('button', { name: 'Verify MFA' }));
 
     await screen.findByText(/MFA verified.*confirm the module change again/i);
     expect(mockedApiFetch).toHaveBeenCalledWith(
       '/auth/me/mfa/step-up',
-      expect.objectContaining({ method: 'POST', body: JSON.stringify({ code: '123456' }) })
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ code: '123456' }),
+      })
     );
     expect(
       mockedApiFetch.mock.calls.filter(([, init]) => init?.method === 'PATCH')
@@ -183,28 +244,49 @@ describe('RuntimeModulesPanel', () => {
         return { total: 0, page: 1, page_size: 20, items: [] };
       }
       if (path === '/admin/runtime-modules/ciba' && init?.method === 'PATCH') {
-        throw new ApiError('Runtime module dependencies reject this change.', 409, {
-          error: 'invalid_request',
-        });
+        throw new ApiError(
+          'Runtime module dependencies reject this change.',
+          409,
+          {
+            error: 'invalid_request',
+          }
+        );
       }
       throw new Error(`unexpected request: ${path}`);
     });
     const user = userEvent.setup();
-    render(<RuntimeModulesPanel />);
+    render(
+      <I18nProvider>
+        <RuntimeModulesPanel />
+      </I18nProvider>
+    );
 
-    await screen.findByRole('heading', { name: /Client Initiated Backchannel Authentication/i });
-    await user.selectOptions(screen.getByLabelText('Desired mode for ciba'), 'inherit');
+    await screen.findByRole('heading', {
+      name: /Client Initiated Backchannel Authentication/i,
+    });
+    await user.selectOptions(
+      screen.getByLabelText('Desired mode for ciba'),
+      'inherit'
+    );
     await user.type(screen.getByLabelText('Reason for ciba'), 'Change policy');
-    await user.click(screen.getByRole('button', { name: 'Review ciba change' }));
-    await user.click(screen.getByRole('button', { name: 'Confirm ciba change' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Review ciba change' })
+    );
+    await user.click(
+      screen.getByRole('button', { name: 'Confirm ciba change' })
+    );
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Runtime module dependencies reject this change.'
     );
-    expect(screen.queryByText(/Authoritative state was reloaded/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Authoritative state was reloaded/i)
+    ).not.toBeInTheDocument();
     expect(screen.getByDisplayValue('Change policy')).toBeInTheDocument();
     expect(
-      mockedApiFetch.mock.calls.filter(([path]) => path === '/admin/runtime-modules')
+      mockedApiFetch.mock.calls.filter(
+        ([path]) => path === '/admin/runtime-modules'
+      )
     ).toHaveLength(1);
   });
 
@@ -233,22 +315,41 @@ describe('RuntimeModulesPanel', () => {
       throw new Error(`unexpected request: ${path}`);
     });
     const user = userEvent.setup();
-    render(<RuntimeModulesPanel />);
+    render(
+      <I18nProvider>
+        <RuntimeModulesPanel />
+      </I18nProvider>
+    );
 
-    await screen.findByRole('heading', { name: /Client Initiated Backchannel Authentication/i });
-    await user.selectOptions(screen.getByLabelText('Desired mode for ciba'), 'inherit');
+    await screen.findByRole('heading', {
+      name: /Client Initiated Backchannel Authentication/i,
+    });
+    await user.selectOptions(
+      screen.getByLabelText('Desired mode for ciba'),
+      'inherit'
+    );
     await user.type(screen.getByLabelText('Reason for ciba'), 'Operator draft');
-    await user.click(screen.getByRole('button', { name: 'Refresh runtime state' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Refresh runtime state' })
+    );
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Server revision changed from 7 to 8'
     );
-    expect(screen.getByRole('button', { name: 'Review ciba change' })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Review ciba change' })
+    ).toBeDisabled();
     expect(screen.getByDisplayValue('Operator draft')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Reset draft to server state' }));
-    expect(screen.queryByDisplayValue('Operator draft')).not.toBeInTheDocument();
-    expect(screen.queryByText(/Server revision changed from/i)).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', { name: 'Reset draft to server state' })
+    );
+    expect(
+      screen.queryByDisplayValue('Operator draft')
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Server revision changed from/i)
+    ).not.toBeInTheDocument();
   });
 
   it.each([
@@ -256,9 +357,12 @@ describe('RuntimeModulesPanel', () => {
     [404, 'not available on this server version'],
     [409, 'changed concurrently'],
     [429, 'Too many MFA attempts'],
-  ])('maps MFA step-up HTTP %s to an actionable non-replay message', (status, message) => {
-    expect(mfaStepUpFailureMessage(new ApiError('Request failed', status, null))).toMatch(
-      new RegExp(message, 'i')
-    );
-  });
+  ])(
+    'maps MFA step-up HTTP %s to an actionable non-replay message',
+    (status, message) => {
+      expect(
+        mfaStepUpFailureMessage(new ApiError('Request failed', status, null))
+      ).toMatch(new RegExp(message, 'i'));
+    }
+  );
 });

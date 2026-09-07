@@ -16,7 +16,7 @@ import {
 import { useAuth } from '../auth/useAuth';
 import { useI18n } from '../i18n';
 import { resolveAvatarUrl } from '../lib/avatar';
-import { publicAsset } from '../lib/publicAsset';
+import BrandLogo from './BrandLogo';
 import './Navbar.css';
 
 export default function Navbar() {
@@ -53,9 +53,7 @@ export default function Navbar() {
     >
       <div className="navbar-container container">
         <Link to="/" className="navbar-logo" aria-label={t('nav.backHome')}>
-          <div className="logo-glow"></div>
-          <img src={publicAsset('icons/site-icon-64x64.png')} alt="NazoAuth icon" className="logo-icon" />
-          <span className="logo-text">NazoAuth</span>
+          <BrandLogo />
         </Link>
 
         <nav className="navbar-nav navbar-nav-desktop">
@@ -68,6 +66,7 @@ export default function Navbar() {
                 key={link.path}
                 to={link.path}
                 className={`nav-link ${isActive ? 'active' : ''}`}
+                aria-current={isActive ? 'page' : undefined}
               >
                 <Icon size={18} />
                 <span>{link.label}</span>
@@ -91,7 +90,11 @@ export default function Navbar() {
             aria-label={locale === 'zh-CN' ? 'Switch to English' : '切换到中文'}
           >
             <Languages size={16} />
-            <span>{locale === 'zh-CN' ? t('nav.switchToEnglish') : t('nav.switchToChinese')}</span>
+            <span>
+              {locale === 'zh-CN'
+                ? t('nav.switchToEnglish')
+                : t('nav.switchToChinese')}
+            </span>
           </button>
           {user ? (
             <>
@@ -103,11 +106,14 @@ export default function Navbar() {
                     className="navbar-avatar"
                   />
                 </span>
-                <span className="navbar-profile-text">{user.display_name || t('nav.profile')}</span>
+                <span className="navbar-profile-text">
+                  {user.display_name || t('nav.profile')}
+                </span>
               </Link>
               <button
                 type="button"
                 className="btn-secondary navbar-logout"
+                aria-label={t('nav.signOut')}
                 onClick={() => {
                   void handleLogout();
                 }}
@@ -130,7 +136,9 @@ export default function Navbar() {
           aria-label={mobileMenuOpen ? t('nav.closeMenu') : t('nav.openMenu')}
           aria-expanded={mobileMenuOpen}
           onClick={() =>
-            setOpenMenuAtRoute((value) => (value === currentRouteKey ? '' : currentRouteKey))
+            setOpenMenuAtRoute((value) =>
+              value === currentRouteKey ? '' : currentRouteKey
+            )
           }
         >
           {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
@@ -155,6 +163,7 @@ export default function Navbar() {
                     key={`mobile-${link.path}`}
                     to={link.path}
                     className={`mobile-nav-link ${isActive ? 'active' : ''}`}
+                    aria-current={isActive ? 'page' : undefined}
                     onClick={() => setOpenMenuAtRoute('')}
                   >
                     <span className="mobile-nav-main">
@@ -174,7 +183,9 @@ export default function Navbar() {
               >
                 <Languages size={16} />
                 <span>
-                  {locale === 'zh-CN' ? t('nav.switchToEnglish') : t('nav.switchToChinese')}
+                  {locale === 'zh-CN'
+                    ? t('nav.switchToEnglish')
+                    : t('nav.switchToChinese')}
                 </span>
               </button>
               {user ? (

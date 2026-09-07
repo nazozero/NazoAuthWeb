@@ -10,6 +10,7 @@ import {
   type VerificationReceiptFailureReason,
   type VerificationReceiptProjection,
 } from '../lib/verificationReceipt';
+import BrandLogo from '../components/BrandLogo';
 import './VerificationResult.css';
 
 type PageState =
@@ -39,11 +40,20 @@ function Detail({
   );
 }
 
-function StateMessage({ state }: { state: Exclude<PageState['kind'], 'verified'> }) {
+function StateMessage({
+  state,
+}: {
+  state: Exclude<PageState['kind'], 'verified'>;
+}) {
   const { t } = useI18n();
   const content = {
     loading: {
-      icon: <LoaderCircle className="verification-result-spinner" aria-hidden="true" />,
+      icon: (
+        <LoaderCircle
+          className="verification-result-spinner"
+          aria-hidden="true"
+        />
+      ),
       title: t('verificationResult.loading.title'),
       body: t('verificationResult.loading.body'),
     },
@@ -112,27 +122,29 @@ export default function VerificationResult() {
       const controller = new AbortController();
       active = { controller, lease };
       setState({ kind: 'loading' });
-      void loadVerificationReceipt(lease.capability, controller.signal).then((result) => {
-        if (
-          stopped ||
-          controller.signal.aborted ||
-          active?.controller !== controller
-        ) {
-          return;
-        }
-        lease.clear();
-        lease.release();
-        active = undefined;
-        if (result.kind !== 'verified') {
+      void loadVerificationReceipt(lease.capability, controller.signal).then(
+        (result) => {
+          if (
+            stopped ||
+            controller.signal.aborted ||
+            active?.controller !== controller
+          ) {
+            return;
+          }
+          lease.clear();
+          lease.release();
+          active = undefined;
+          if (result.kind !== 'verified') {
+            setState(result);
+            return;
+          }
+          if (Date.parse(result.receipt.expiresAt) <= Date.now()) {
+            setState({ kind: 'expired' });
+            return;
+          }
           setState(result);
-          return;
         }
-        if (Date.parse(result.receipt.expiresAt) <= Date.now()) {
-          setState({ kind: 'expired' });
-          return;
-        }
-        setState(result);
-      });
+      );
     };
 
     const clearOnPageHide = () => stopActive(true);
@@ -183,9 +195,12 @@ export default function VerificationResult() {
       }
     >
       <div className="verification-result-backdrop" aria-hidden="true" />
-      <article className="verification-result-card" aria-labelledby="verification-result-title">
+      <article
+        className="verification-result-card"
+        aria-labelledby="verification-result-title"
+      >
         <header className="verification-result-brand">
-          <img src={`${import.meta.env.BASE_URL}icons/site-icon-64x64.png`} alt="" />
+          <BrandLogo compact />
           <div>
             <p>NazoAuth Verifier</p>
             <span>{t('verificationResult.brand.subtitle')}</span>
@@ -195,7 +210,10 @@ export default function VerificationResult() {
         {state.kind === 'verified' ? (
           <>
             <section className="verification-result-success" aria-live="polite">
-              <div className="verification-result-success-icon" aria-hidden="true">
+              <div
+                className="verification-result-success-icon"
+                aria-hidden="true"
+              >
                 <ShieldCheck />
               </div>
               <p className="verification-result-eyebrow">
@@ -210,7 +228,10 @@ export default function VerificationResult() {
               <p>{t('verificationResult.success.body')}</p>
             </section>
 
-            <dl className="verification-result-details" aria-label={t('verificationResult.details.label')}>
+            <dl
+              className="verification-result-details"
+              aria-label={t('verificationResult.details.label')}
+            >
               <Detail
                 label={t('verificationResult.details.testName')}
                 testId="vp-test-name"

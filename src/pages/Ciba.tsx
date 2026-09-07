@@ -1,3 +1,4 @@
+import BrandLogo from '../components/BrandLogo';
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -30,7 +31,10 @@ function resolveErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-function formatDateTime(value: string | undefined, unknownLabel: string): string {
+function formatDateTime(
+  value: string | undefined,
+  unknownLabel: string
+): string {
   if (!value) {
     return unknownLabel;
   }
@@ -77,9 +81,12 @@ export default function Ciba() {
           return;
         }
         if (error instanceof ApiError && error.status === 401) {
-          navigate(buildAuthRedirectWithNext(buildCurrentPath(window.location)), {
-            replace: true,
-          });
+          navigate(
+            buildAuthRedirectWithNext(buildCurrentPath(window.location)),
+            {
+              replace: true,
+            }
+          );
           return;
         }
         setView(null);
@@ -133,9 +140,12 @@ export default function Ciba() {
     } catch (error) {
       if (error instanceof ApiError) {
         if (error.status === 401) {
-          navigate(buildAuthRedirectWithNext(buildCurrentPath(window.location)), {
-            replace: true,
-          });
+          navigate(
+            buildAuthRedirectWithNext(buildCurrentPath(window.location)),
+            {
+              replace: true,
+            }
+          );
           return;
         }
         setErrorMsg(error.message || t('ciba.error.decision'));
@@ -154,9 +164,12 @@ export default function Ciba() {
         );
       } catch (reloadError) {
         if (reloadError instanceof ApiError && reloadError.status === 401) {
-          navigate(buildAuthRedirectWithNext(buildCurrentPath(window.location)), {
-            replace: true,
-          });
+          navigate(
+            buildAuthRedirectWithNext(buildCurrentPath(window.location)),
+            {
+              replace: true,
+            }
+          );
           return;
         }
         setErrorMsg(t('ciba.warning.statusUnknown'));
@@ -175,6 +188,9 @@ export default function Ciba() {
       exit="exit"
     >
       <div className="ciba-shell">
+        <div className="authorization-brand">
+          <BrandLogo />
+        </div>
         <motion.section className="ciba-card glass" layout>
           <header className="ciba-head">
             <span className="ciba-icon">
@@ -254,11 +270,15 @@ export default function Ciba() {
                     </div>
                     <div>
                       <span>{t('ciba.issued')}</span>
-                      <strong>{formatDateTime(request.issued_at, t('ciba.unknown'))}</strong>
+                      <strong>
+                        {formatDateTime(request.issued_at, t('ciba.unknown'))}
+                      </strong>
                     </div>
                     <div>
                       <span>{t('ciba.expires')}</span>
-                      <strong>{formatDateTime(request.expires_at, t('ciba.unknown'))}</strong>
+                      <strong>
+                        {formatDateTime(request.expires_at, t('ciba.unknown'))}
+                      </strong>
                     </div>
                   </div>
                 </section>
@@ -285,11 +305,17 @@ export default function Ciba() {
                     animate="animate"
                     layout
                   >
-                    {(scopes.length ? scopes : [t('ciba.noScopes')]).map((scope) => (
-                      <motion.li key={scope} variants={revealItemVariants} layout>
-                        {scope}
-                      </motion.li>
-                    ))}
+                    {(scopes.length ? scopes : [t('ciba.noScopes')]).map(
+                      (scope) => (
+                        <motion.li
+                          key={scope}
+                          variants={revealItemVariants}
+                          layout
+                        >
+                          {scope}
+                        </motion.li>
+                      )
+                    )}
                   </motion.ul>
                 </section>
 
@@ -305,8 +331,15 @@ export default function Ciba() {
                     animate="animate"
                     layout
                   >
-                    {(audiences.length ? audiences : [t('ciba.defaultResource')]).map((audience) => (
-                      <motion.li key={audience} variants={revealItemVariants} layout>
+                    {(audiences.length
+                      ? audiences
+                      : [t('ciba.defaultResource')]
+                    ).map((audience) => (
+                      <motion.li
+                        key={audience}
+                        variants={revealItemVariants}
+                        layout
+                      >
                         {audience}
                       </motion.li>
                     ))}
@@ -322,7 +355,11 @@ export default function Ciba() {
                     onClick={() => void submitDecision('deny')}
                   >
                     <CircleSlash size={16} />
-                    <span>{submitting === 'deny' ? t('ciba.denying') : t('ciba.deny')}</span>
+                    <span>
+                      {submitting === 'deny'
+                        ? t('ciba.denying')
+                        : t('ciba.deny')}
+                    </span>
                   </button>
                   <button
                     id="nazo-ciba-approve"
@@ -333,7 +370,9 @@ export default function Ciba() {
                   >
                     <ShieldCheck size={16} />
                     <span>
-                      {submitting === 'approve' ? t('ciba.approving') : t('ciba.approve')}
+                      {submitting === 'approve'
+                        ? t('ciba.approving')
+                        : t('ciba.approve')}
                     </span>
                   </button>
                 </div>

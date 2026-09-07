@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuth } from '../auth/useAuth';
 import { apiFetch } from '../lib/api';
 import Profile from './Profile';
+import { I18nProvider } from '../i18n';
 
 vi.mock('../lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../lib/api')>();
@@ -28,7 +29,9 @@ const user = {
 function renderProfile() {
   return render(
     <MemoryRouter>
-      <Profile />
+      <I18nProvider>
+        <Profile />
+      </I18nProvider>
     </MemoryRouter>
   );
 }
@@ -60,27 +63,39 @@ describe('Profile avatar uploads', () => {
           headers: { 'content-length': '3' },
         },
       })
-      .mockResolvedValueOnce({ ...user, avatar_url: '/auth/me/avatar?revision=2' });
+      .mockResolvedValueOnce({
+        ...user,
+        avatar_url: '/auth/me/avatar?revision=2',
+      });
 
     renderProfile();
     const input = await screen.findByLabelText('Upload avatar');
     await waitFor(() => expect(input).not.toBeDisabled());
     const file = new File(['png'], 'avatar.png', { type: 'image/png' });
     fireEvent.change(input, { target: { files: [file] } });
-    await userEvent.click(screen.getByRole('button', { name: /Save and upload avatar/i }));
+    await userEvent.click(
+      screen.getByRole('button', { name: /Save and upload avatar/i })
+    );
 
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
-    expect(put).toHaveBeenCalledWith('https://storage.example.test/avatars/upload-1', {
-      method: 'PUT',
-      headers: { 'content-length': '3' },
-      body: file,
-      credentials: 'omit',
-    });
-    expect(mockedApiFetch).toHaveBeenNthCalledWith(2, '/auth/me/avatar/uploads', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content_length: 3 }),
-    });
+    expect(put).toHaveBeenCalledWith(
+      'https://storage.example.test/avatars/upload-1',
+      {
+        method: 'PUT',
+        headers: { 'content-length': '3' },
+        body: file,
+        credentials: 'omit',
+      }
+    );
+    expect(mockedApiFetch).toHaveBeenNthCalledWith(
+      2,
+      '/auth/me/avatar/uploads',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content_length: 3 }),
+      }
+    );
     expect(mockedApiFetch).toHaveBeenNthCalledWith(
       3,
       '/auth/me/avatar/uploads/upload-1/complete',
@@ -95,7 +110,9 @@ describe('Profile avatar uploads', () => {
     const input = await screen.findByLabelText('Upload avatar');
     await waitFor(() => expect(input).toBeDisabled());
     expect(
-      screen.getByText('Avatar storage is unavailable for this tenant. Contact the system administrator.')
+      screen.getByText(
+        'Avatar storage is unavailable for this tenant. Contact the system administrator.'
+      )
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reset avatar' })).toBeDisabled();
   });

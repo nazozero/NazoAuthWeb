@@ -1,6 +1,6 @@
 {
-  "name": "Nazo OAuth",
-  "short_name": "NazoOAuth",
+  "name": "NazoAuth",
+  "short_name": "NazoAuth",
   "icons": [
     {
       "src": "icons/android-chrome-192x192.png",
@@ -13,7 +13,7 @@
       "type": "image/png"
     }
   ],
-  "theme_color": "#0a0a0a",
-  "background_color": "#0a0a0a",
+  "theme_color": "#06090f",
+  "background_color": "#06090f",
   "display": "standalone"
 }
