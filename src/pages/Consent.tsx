@@ -119,7 +119,7 @@ export default function Consent() {
   const { locale, t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [consentView, setConsentView] = useState<ConsentView | null>(null);
@@ -156,6 +156,7 @@ export default function Consent() {
           return;
         }
         if (error instanceof ApiError && error.status === 401) {
+          setUser(null);
           navigate(
             buildAuthRedirectWithNext(buildCurrentPath(window.location)),
             {
@@ -176,7 +177,7 @@ export default function Consent() {
     return () => {
       active = false;
     };
-  }, [navigate, requestId]);
+  }, [navigate, requestId, setUser]);
 
   const decisionEndpoint = `${API_BASE_URL}/authorize/decision`;
   const scopeItems = (consentView?.scopes ?? []).map((scope) => ({

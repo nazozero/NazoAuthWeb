@@ -12,65 +12,76 @@ import { AuthContext, type AuthContextValue } from './context';
 import { clearSessionHint, hasSessionHint, markSessionHint } from './sessionHint';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [user, setUserState] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(false);
   const [sessionChecked, setSessionChecked] = useState(() => !hasSessionHint());
-  const refreshInFlightRef = useRef<Promise<AuthUser | null> | null>(null);
+  const refreshInFlightRef = useRef<{
+    controller: AbortController;
+    promise: Promise<AuthUser | null>;
+  } | null>(null);
+
+  const cancelRefresh = useCallback(() => {
+    refreshInFlightRef.current?.controller.abort();
+    refreshInFlightRef.current = null;
+  }, []);
+
+  const setUser = useCallback((nextUser: AuthUser | null) => {
+    cancelRefresh();
+    setUserState(nextUser);
+    setLoading(false);
+    setSessionChecked(true);
+    if (nextUser) markSessionHint();
+    else clearSessionHint();
+  }, [cancelRefresh]);
 
   const refreshSession = useCallback(async (): Promise<AuthUser | null> => {
     if (refreshInFlightRef.current) {
-      return refreshInFlightRef.current;
+      return refreshInFlightRef.current.promise;
     }
 
+    const controller = new AbortController();
     const pending = (async (): Promise<AuthUser | null> => {
       setLoading(true);
       try {
-        const me = await apiFetch<AuthUser>('/auth/me');
-        setUser(me);
+        const me = await apiFetch<AuthUser>('/auth/me', { signal: controller.signal });
+        if (controller.signal.aborted) return null;
+        setUserState(me);
         markSessionHint();
         return me;
       } catch (error) {
-        if (error instanceof ApiError && error.status === 401) {
-          setUser(null);
+        if (!controller.signal.aborted && error instanceof ApiError && error.status === 401) {
+          setUserState(null);
           clearSessionHint();
         }
         return null;
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          refreshInFlightRef.current = null;
+          setLoading(false);
+          setSessionChecked(true);
+        }
       }
     })();
 
-    refreshInFlightRef.current = pending;
-    try {
-      return await pending;
-    } finally {
-      if (refreshInFlightRef.current === pending) {
-        refreshInFlightRef.current = null;
-      }
-    }
+    refreshInFlightRef.current = { controller, promise: pending };
+    return pending;
   }, []);
 
   useEffect(() => {
-    if (!hasSessionHint()) {
-      setSessionChecked(true);
-      return;
-    }
-    void refreshSession().finally(() => {
-      setSessionChecked(true);
-    });
-  }, [refreshSession]);
+    if (hasSessionHint()) void refreshSession();
+    return cancelRefresh;
+  }, [cancelRefresh, refreshSession]);
 
   const logout = useCallback(async () => {
+    cancelRefresh();
     try {
       await apiFetch<{ success: boolean }>('/auth/logout', {
         method: 'POST',
       });
     } finally {
       setUser(null);
-      clearSessionHint();
-      setSessionChecked(true);
     }
-  }, []);
+  }, [cancelRefresh, setUser]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -81,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser,
       logout,
     }),
-    [loading, logout, refreshSession, sessionChecked, user]
+    [loading, logout, refreshSession, sessionChecked, setUser, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

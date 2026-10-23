@@ -1,5 +1,5 @@
 import { useI18n } from '../../i18n';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Ban, Search, ShieldCheck } from 'lucide-react';
 import { ApiError, apiFetch } from '../../lib/api';
 import type {
@@ -10,6 +10,8 @@ import type {
 
 export default function GrantsPanel() {
   const { t } = useI18n();
+  const queryInput = useRef<HTMLInputElement>(null);
+  const listRequest = useRef<AbortController | null>(null);
 
   const [items, setItems] = useState<AdminGrantItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -28,6 +30,9 @@ export default function GrantsPanel() {
   );
   const load = useCallback(
     async (nextPage: number) => {
+      listRequest.current?.abort();
+      const controller = new AbortController();
+      listRequest.current = controller;
       setLoading(true);
       const params = new URLSearchParams({
         page: String(nextPage),
@@ -36,12 +41,15 @@ export default function GrantsPanel() {
       if (query.trim()) params.set('q', query.trim());
       try {
         const result = await apiFetch<AdminGrantListResponse>(
-          `/admin/grants?${params}`
+          `/admin/grants?${params}`,
+          { signal: controller.signal }
         );
+        if (controller.signal.aborted) return;
         setItems(result.items);
         setTotal(result.total);
         setPage(result.page);
       } catch (error) {
+        if (controller.signal.aborted) return;
         setFeedback({
           error: true,
           text:
@@ -50,13 +58,14 @@ export default function GrantsPanel() {
               : 'Could not load grants.',
         });
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     },
     [query]
   );
   useEffect(() => {
     void load(1);
+    return () => listRequest.current?.abort();
   }, [load]);
   const revoke = async (item: AdminGrantItem) => {
     const key = `${item.user_id}:${item.client_id}`;
@@ -100,8 +109,10 @@ export default function GrantsPanel() {
         </h2>
         <div className="admin-query-row">
           <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            ref={queryInput}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') setQuery(event.currentTarget.value.trim());
+            }}
             aria-label={t('admin.ui.searchByEmailClientIdOrClientName')}
             placeholder={t('admin.ui.searchByEmailClientIdOrClientName')}
           />
@@ -109,7 +120,7 @@ export default function GrantsPanel() {
             type="button"
             className="btn-secondary"
             disabled={loading}
-            onClick={() => void load(1)}
+            onClick={() => setQuery(queryInput.current?.value.trim() ?? '')}
           >
             <Search size={14} />
             {t('admin.ui.search')}

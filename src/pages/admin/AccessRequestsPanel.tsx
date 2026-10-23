@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
 } from 'react';
@@ -28,6 +29,8 @@ const errorText = (error: unknown, fallback: string) =>
     : fallback;
 export default function AccessRequestsPanel() {
   const { t } = useI18n();
+  const queryInput = useRef<HTMLInputElement>(null);
+  const listRequest = useRef<AbortController | null>(null);
 
   const [items, setItems] = useState<AdminAccessRequestItem[]>([]),
     [total, setTotal] = useState(0),
@@ -45,6 +48,9 @@ export default function AccessRequestsPanel() {
     pages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total]);
   const load = useCallback(
     async (nextPage: number) => {
+      listRequest.current?.abort();
+      const controller = new AbortController();
+      listRequest.current = controller;
       setLoading(true);
       const p = new URLSearchParams({
         page: String(nextPage),
@@ -54,21 +60,25 @@ export default function AccessRequestsPanel() {
       if (status) p.set('status', status);
       try {
         const result = await apiFetch<AdminAccessRequestListResponse>(
-          `/admin/access-requests?${p}`
+          `/admin/access-requests?${p}`,
+          { signal: controller.signal }
         );
+        if (controller.signal.aborted) return;
         setItems(result.items);
         setTotal(result.total);
         setPage(result.page);
       } catch (error) {
+        if (controller.signal.aborted) return;
         setFeedback(errorText(error, 'Could not load access requests.'));
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     },
     [query, status]
   );
   useEffect(() => {
     void load(1);
+    return () => listRequest.current?.abort();
   }, [load]);
   const reject = async (event: FormEvent) => {
     event.preventDefault();
@@ -148,8 +158,10 @@ export default function AccessRequestsPanel() {
         </h2>
         <div className="admin-query-row">
           <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            ref={queryInput}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') setQuery(event.currentTarget.value.trim());
+            }}
             aria-label={t('admin.ui.searchRequests')}
             placeholder={t('admin.ui.searchRequests')}
           />
@@ -159,7 +171,7 @@ export default function AccessRequestsPanel() {
             <option value="approved">{t('admin.ui.approved')}</option>
             <option value="rejected">{t('admin.ui.rejected')}</option>
           </select>
-          <button onClick={() => void load(1)}>
+          <button onClick={() => setQuery(queryInput.current?.value.trim() ?? '')}>
             <Search size={14} />
             {t('admin.ui.search')}
           </button>

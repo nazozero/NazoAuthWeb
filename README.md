@@ -85,3 +85,5 @@ For `issuer.example/ui/`, deploy the contents of `dist/` to the static site root
 
 NazoAuth Web is licensed under the
 [GNU Affero General Public License, version 3 or later](LICENSE).
+
+See [session and request ownership](docs/request-lifecycle.md) for search behavior and verification examples.

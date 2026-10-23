@@ -77,6 +77,11 @@ export default function Profile() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, setUser, logout } = useAuth();
+  const pageActive = useRef(false);
+  useEffect(() => {
+    pageActive.current = true;
+    return () => { pageActive.current = false; };
+  }, []);
 
   const [displayName, setDisplayName] = useState('');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -127,36 +132,35 @@ export default function Profile() {
   }, [user]);
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
 
     const loadAvatarUploadCapability = async () => {
       try {
         const capability = await apiFetch<AvatarUploadCapability>(
-          '/auth/me/avatar/uploads'
+          '/auth/me/avatar/uploads', { signal: controller.signal }
         );
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setAvatarUploadMode(capability.upload_mode);
           setAvatarCapabilityError('');
         }
       } catch (error) {
+        if (controller.signal.aborted) return;
         if (error instanceof ApiError && error.status === 401) {
-          await logout();
+          setUser(null);
           navigate('/auth', { replace: true });
           return;
         }
-        if (!cancelled) {
-          setAvatarCapabilityError(
-            'Avatar storage availability could not be loaded. Try again later.'
-          );
-        }
+        setAvatarCapabilityError(
+          'Avatar storage availability could not be loaded. Try again later.'
+        );
       }
     };
 
     void loadAvatarUploadCapability();
     return () => {
-      cancelled = true;
+      controller.abort();
     };
-  }, [logout, navigate]);
+  }, [setUser, navigate]);
 
   const updateTab = useCallback(
     (tab: ProfileTab) => {
@@ -178,57 +182,38 @@ export default function Profile() {
     [activeTab, location.search, navigate]
   );
 
-  const loadApplications = useCallback(async () => {
-    setLoadingApps(true);
-    try {
-      const response = await apiFetch<AuthorizedAppsResponse>(
-        '/auth/me/applications'
-      );
-      setApps(response.items);
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) {
-        await logout();
-        navigate('/auth', { replace: true });
-        return;
-      }
-      setProfileErrorMsg(
-        resolveErrorMessage(error, 'Could not load authorized apps')
-      );
-    } finally {
-      setLoadingApps(false);
-    }
-  }, [logout, navigate]);
-
-  const loadAccessRequests = useCallback(async () => {
-    setLoadingRequests(true);
-    try {
-      const response = await apiFetch<ClientAccessRequestListResponse>(
-        '/auth/me/access-requests'
-      );
-      setRequests(response.items);
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) {
-        await logout();
-        navigate('/auth', { replace: true });
-        return;
-      }
-      setRequestErrorMsg(
-        resolveErrorMessage(error, 'Could not load access requests')
-      );
-    } finally {
-      setLoadingRequests(false);
-    }
-  }, [logout, navigate]);
-
   useEffect(() => {
-    if (activeTab === 'apps') {
-      void loadApplications();
-      return;
-    }
-    if (activeTab === 'access-requests') {
-      void loadAccessRequests();
-    }
-  }, [activeTab, loadAccessRequests, loadApplications]);
+    if (activeTab === 'profile') return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    const setLoading = activeTab === 'apps' ? setLoadingApps : setLoadingRequests;
+    const setError = activeTab === 'apps' ? setProfileErrorMsg : setRequestErrorMsg;
+    setLoading(true);
+    const load = async () => {
+      try {
+        if (activeTab === 'apps') {
+          const response = await apiFetch<AuthorizedAppsResponse>('/auth/me/applications', { signal });
+          if (!signal.aborted) setApps(response.items);
+        } else {
+          const response = await apiFetch<ClientAccessRequestListResponse>('/auth/me/access-requests', { signal });
+          if (!signal.aborted) setRequests(response.items);
+        }
+      } catch (error) {
+        if (signal.aborted) return;
+        if (error instanceof ApiError && error.status === 401) {
+          setUser(null);
+          navigate('/auth', { replace: true });
+          return;
+        }
+        setError(resolveErrorMessage(error, activeTab === 'apps'
+          ? 'Could not load authorized apps' : 'Could not load access requests'));
+      } finally {
+        if (!signal.aborted) setLoading(false);
+      }
+    };
+    void load();
+    return () => controller.abort();
+  }, [activeTab, setUser, navigate]);
 
   const avatarPreview = useMemo(
     () => resolveAvatarUrl(user?.avatar_url),
@@ -263,6 +248,7 @@ export default function Profile() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
+        if (!pageActive.current) return;
       }
       if (avatarFile) {
         if (avatarUploadMode === 'multipart') {
@@ -281,12 +267,14 @@ export default function Profile() {
               body: JSON.stringify({ content_length: avatarFile.size }),
             }
           );
+          if (!pageActive.current) return;
           const uploadResponse = await fetch(initiated.upload.url, {
             method: initiated.upload.method,
             headers: initiated.upload.headers,
             body: avatarFile,
             credentials: 'omit',
           });
+          if (!pageActive.current) return;
           if (!uploadResponse.ok) {
             throw new Error('Avatar file upload failed.');
           }
@@ -304,11 +292,13 @@ export default function Profile() {
           avatarInputRef.current.value = '';
         }
       }
+      if (!pageActive.current) return;
       setUser(latestUser);
       setProfileSuccessMsg('Profile updated.');
     } catch (error) {
+      if (!pageActive.current) return;
       if (error instanceof ApiError && error.status === 401) {
-        await logout();
+        setUser(null);
         navigate('/auth', { replace: true });
         return;
       }
@@ -334,6 +324,7 @@ export default function Profile() {
       const updatedUser = await apiFetch<AuthUser>('/auth/me/avatar', {
         method: 'DELETE',
       });
+      if (!pageActive.current) return;
       setUser(updatedUser);
       setAvatarFile(null);
       if (avatarInputRef.current) {
@@ -341,8 +332,9 @@ export default function Profile() {
       }
       setProfileSuccessMsg('Avatar reset to default.');
     } catch (error) {
+      if (!pageActive.current) return;
       if (error instanceof ApiError && error.status === 401) {
-        await logout();
+        setUser(null);
         navigate('/auth', { replace: true });
         return;
       }
@@ -377,7 +369,7 @@ export default function Profile() {
 
     setSubmittingRequest(true);
     try {
-      await apiFetch<ClientAccessRequestItem>('/auth/me/access-requests', {
+      const created = await apiFetch<ClientAccessRequestItem>('/auth/me/access-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -386,14 +378,16 @@ export default function Profile() {
           request_description: normalizedDescription,
         }),
       });
+      if (!pageActive.current) return;
       setRequestSuccessMsg('Request submitted. Waiting for admin review.');
       setSiteName('');
       setSiteUrl('');
       setRequestDescription('');
-      await loadAccessRequests();
+      setRequests((current) => [created, ...current]);
     } catch (error) {
+      if (!pageActive.current) return;
       if (error instanceof ApiError && error.status === 401) {
-        await logout();
+        setUser(null);
         navigate('/auth', { replace: true });
         return;
       }
@@ -421,6 +415,7 @@ export default function Profile() {
           body: JSON.stringify({ request_id: request.id }),
         }
       );
+      if (!pageActive.current) return;
       setDeliveryResult(response);
       setRequests((current) =>
         current.map((item) =>
@@ -428,6 +423,7 @@ export default function Profile() {
         )
       );
     } catch (error) {
+      if (!pageActive.current) return;
       setDeliveryErrorMsg(
         resolveErrorMessage(error, 'Could not read one-time credentials')
       );
@@ -813,7 +809,7 @@ export default function Profile() {
                     <button
                       type="submit"
                       className="btn-primary"
-                      disabled={submittingRequest || Boolean(pendingRequest)}
+                      disabled={loadingRequests || submittingRequest || Boolean(pendingRequest)}
                     >
                       <PlusCircle size={16} />
                       <span>

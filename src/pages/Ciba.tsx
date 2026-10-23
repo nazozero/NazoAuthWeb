@@ -1,4 +1,5 @@
 import BrandLogo from '../components/BrandLogo';
+import { useAuth } from '../auth/useAuth';
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -49,6 +50,7 @@ function formatDateTime(
 }
 
 export default function Ciba() {
+  const { setUser } = useAuth();
   const navigate = useNavigate();
   const { t } = useI18n();
   const { authReqId = '' } = useParams();
@@ -81,6 +83,7 @@ export default function Ciba() {
           return;
         }
         if (error instanceof ApiError && error.status === 401) {
+          setUser(null);
           navigate(
             buildAuthRedirectWithNext(buildCurrentPath(window.location)),
             {
@@ -102,7 +105,7 @@ export default function Ciba() {
     return () => {
       active = false;
     };
-  }, [authReqId, navigate, t]);
+  }, [authReqId, navigate, setUser, t]);
 
   const request = view?.request ?? null;
   const scopes = request?.scopes ?? [];
@@ -140,6 +143,7 @@ export default function Ciba() {
     } catch (error) {
       if (error instanceof ApiError) {
         if (error.status === 401) {
+          setUser(null);
           navigate(
             buildAuthRedirectWithNext(buildCurrentPath(window.location)),
             {
@@ -164,6 +168,7 @@ export default function Ciba() {
         );
       } catch (reloadError) {
         if (reloadError instanceof ApiError && reloadError.status === 401) {
+          setUser(null);
           navigate(
             buildAuthRedirectWithNext(buildCurrentPath(window.location)),
             {
