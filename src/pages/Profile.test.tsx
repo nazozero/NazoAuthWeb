@@ -165,4 +165,18 @@ describe('Profile avatar uploads', () => {
     expect(mockedApiFetch.mock.calls.filter(([path, init]) => path === '/auth/me/access-requests' && !init?.method)).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Submit request' })).toBeDisabled();
   });
+
+  it('stops publishing profile saves as soon as logout starts', async () => {
+    let resolve!: (value: typeof user) => void;
+    mockedApiFetch.mockResolvedValueOnce({ upload_mode: 'disabled' })
+      .mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+    vi.mocked(mockedUseAuth().logout).mockReturnValue(new Promise(() => {}));
+    renderProfile();
+    await userEvent.type(screen.getByLabelText('Display name'), 'Changed');
+    await userEvent.click(screen.getByRole('button', { name: /Save profile/i }));
+    await waitFor(() => expect(mockedApiFetch).toHaveBeenCalledTimes(2));
+    await userEvent.click(screen.getByRole('button', { name: /Sign out/i }));
+    await act(async () => { resolve(user); });
+    expect(mockedUseAuth().setUser).not.toHaveBeenCalled();
+  });
 });

@@ -433,6 +433,7 @@ export default function Profile() {
   };
 
   const handleLogout = async () => {
+    pageActive.current = false;
     await logout();
     navigate('/auth', { replace: true });
   };
