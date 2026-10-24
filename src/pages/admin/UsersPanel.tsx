@@ -1,5 +1,5 @@
 import { useI18n } from '../../i18n';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, UserRoundCog } from 'lucide-react';
 import { ApiError, apiFetch } from '../../lib/api';
 import type { AdminUserItem, AdminUserListResponse } from '../../types/auth';
@@ -18,6 +18,8 @@ function message(error: unknown): string {
 
 export default function UsersPanel() {
   const { t } = useI18n();
+  const queryInput = useRef<HTMLInputElement>(null);
+  const listRequest = useRef<AbortController | null>(null);
 
   const [items, setItems] = useState<AdminUserItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -39,6 +41,9 @@ export default function UsersPanel() {
 
   const load = useCallback(
     async (nextPage: number) => {
+      listRequest.current?.abort();
+      const controller = new AbortController();
+      listRequest.current = controller;
       setLoading(true);
       setFeedback(null);
       const params = new URLSearchParams({
@@ -50,15 +55,18 @@ export default function UsersPanel() {
       if (active) params.set('is_active', active);
       try {
         const result = await apiFetch<AdminUserListResponse>(
-          `/admin/users?${params}`
+          `/admin/users?${params}`,
+          { signal: controller.signal }
         );
+        if (controller.signal.aborted) return;
         setItems(result.items);
         setTotal(result.total);
         setPage(result.page);
       } catch (error) {
+        if (controller.signal.aborted) return;
         setFeedback({ kind: 'error', text: message(error) });
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     },
     [active, query, role]
@@ -66,6 +74,7 @@ export default function UsersPanel() {
 
   useEffect(() => {
     void load(1);
+    return () => listRequest.current?.abort();
   }, [load]);
 
   const update = async (
@@ -106,8 +115,10 @@ export default function UsersPanel() {
         </h2>
         <div className="admin-query-row">
           <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            ref={queryInput}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') setQuery(event.currentTarget.value.trim());
+            }}
             aria-label={t('admin.ui.searchByEmailOrUserName')}
             placeholder={t('admin.ui.searchByEmailOrUserName')}
           />
@@ -131,7 +142,7 @@ export default function UsersPanel() {
             type="button"
             className="btn-secondary"
             disabled={loading}
-            onClick={() => void load(1)}
+            onClick={() => setQuery(queryInput.current?.value.trim() ?? '')}
           >
             <Search size={14} />
             {t('admin.ui.search')}

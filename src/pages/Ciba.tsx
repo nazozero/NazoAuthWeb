@@ -1,5 +1,6 @@
 import BrandLogo from '../components/BrandLogo';
-import { useEffect, useState } from 'react';
+import { useAuth } from '../auth/useAuth';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -49,6 +50,7 @@ function formatDateTime(
 }
 
 export default function Ciba() {
+  const { setUser } = useAuth();
   const navigate = useNavigate();
   const { t } = useI18n();
   const { authReqId = '' } = useParams();
@@ -57,19 +59,22 @@ export default function Ciba() {
   const [submitting, setSubmitting] = useState<'approve' | 'deny' | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [resultMsg, setResultMsg] = useState('');
+  const requestOwner = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
+    requestOwner.current = controller;
     setLoading(true);
+    setSubmitting(null);
     setErrorMsg('');
     setResultMsg('');
 
     const loadCibaView = async () => {
       try {
         const payload = await apiFetch<CibaVerificationView>(
-          `/auth/ciba/${encodeURIComponent(authReqId)}`
+          `/auth/ciba/${encodeURIComponent(authReqId)}`, { signal: controller.signal }
         );
-        if (!active) {
+        if (controller.signal.aborted) {
           return;
         }
         setView(payload);
@@ -77,10 +82,11 @@ export default function Ciba() {
           setErrorMsg(t('ciba.error.invalid'));
         }
       } catch (error) {
-        if (!active) {
+        if (controller.signal.aborted) {
           return;
         }
         if (error instanceof ApiError && error.status === 401) {
+          setUser(null);
           navigate(
             buildAuthRedirectWithNext(buildCurrentPath(window.location)),
             {
@@ -92,7 +98,7 @@ export default function Ciba() {
         setView(null);
         setErrorMsg(resolveErrorMessage(error, t('ciba.error.load')));
       } finally {
-        if (active) {
+        if (!controller.signal.aborted) {
           setLoading(false);
         }
       }
@@ -100,16 +106,17 @@ export default function Ciba() {
 
     void loadCibaView();
     return () => {
-      active = false;
+      controller.abort();
     };
-  }, [authReqId, navigate, t]);
+  }, [authReqId, navigate, setUser, t]);
 
   const request = view?.request ?? null;
   const scopes = request?.scopes ?? [];
   const audiences = request?.audiences ?? [];
 
   const submitDecision = async (decision: 'approve' | 'deny') => {
-    if (!view?.auth_req_id) {
+    const owner = requestOwner.current;
+    if (!view?.auth_req_id || !owner || owner.signal.aborted) {
       setErrorMsg(t('ciba.error.unavailable'));
       return;
     }
@@ -131,6 +138,7 @@ export default function Ciba() {
           }),
         }
       );
+      if (owner.signal.aborted) return;
       setResultMsg(
         decision === 'approve'
           ? t('ciba.success.approved')
@@ -138,8 +146,10 @@ export default function Ciba() {
       );
       setView((current) => (current ? { ...current, request: null } : current));
     } catch (error) {
+      if (owner.signal.aborted) return;
       if (error instanceof ApiError) {
         if (error.status === 401) {
+          setUser(null);
           navigate(
             buildAuthRedirectWithNext(buildCurrentPath(window.location)),
             {
@@ -154,8 +164,9 @@ export default function Ciba() {
 
       try {
         const latest = await apiFetch<CibaVerificationView>(
-          `/auth/ciba/${encodeURIComponent(view.auth_req_id)}`
+          `/auth/ciba/${encodeURIComponent(view.auth_req_id)}`, { signal: owner.signal }
         );
+        if (owner.signal.aborted) return;
         setView(latest);
         setErrorMsg(
           latest.request
@@ -163,7 +174,9 @@ export default function Ciba() {
             : t('ciba.warning.mayBeProcessed')
         );
       } catch (reloadError) {
+        if (owner.signal.aborted) return;
         if (reloadError instanceof ApiError && reloadError.status === 401) {
+          setUser(null);
           navigate(
             buildAuthRedirectWithNext(buildCurrentPath(window.location)),
             {
@@ -175,7 +188,7 @@ export default function Ciba() {
         setErrorMsg(t('ciba.warning.statusUnknown'));
       }
     } finally {
-      setSubmitting(null);
+      if (!owner.signal.aborted) setSubmitting(null);
     }
   };
 

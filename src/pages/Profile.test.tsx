@@ -1,9 +1,9 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuth } from '../auth/useAuth';
-import { apiFetch } from '../lib/api';
+import { ApiError, apiFetch } from '../lib/api';
 import Profile from './Profile';
 import { I18nProvider } from '../i18n';
 
@@ -26,9 +26,9 @@ const user = {
   authorized_app_count: 0,
 };
 
-function renderProfile() {
+function renderProfile(path = '/profile') {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[path]}>
       <I18nProvider>
         <Profile />
       </I18nProvider>
@@ -115,5 +115,68 @@ describe('Profile avatar uploads', () => {
       )
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reset avatar' })).toBeDisabled();
+  });
+
+  it.each([
+    ['/profile', '/auth/me/avatar/uploads'],
+    ['/profile?tab=apps', '/auth/me/applications'],
+    ['/profile?tab=access-requests', '/auth/me/access-requests'],
+  ])('ignores a late unauthorized read after leaving %s', async (path, endpoint) => {
+    let reject!: (reason: Error) => void;
+    mockedApiFetch.mockImplementation((request) => request === endpoint
+      ? new Promise((_resolve, fail) => { reject = fail; })
+      : Promise.resolve({ upload_mode: 'disabled' }));
+    const { unmount } = renderProfile(path);
+    const signal = mockedApiFetch.mock.calls.find(([request]) => request === endpoint)?.[1]?.signal;
+    unmount();
+    await act(async () => { reject(new ApiError('expired', 401, null)); });
+    expect(mockedUseAuth().logout).not.toHaveBeenCalled();
+    expect(signal?.aborted).toBe(true);
+  });
+
+  it('does not publish a profile save after leaving the page', async () => {
+    let resolve!: (value: typeof user) => void;
+    mockedApiFetch.mockResolvedValueOnce({ upload_mode: 'disabled' })
+      .mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+    const { unmount } = renderProfile();
+    await userEvent.type(screen.getByLabelText('Display name'), 'Changed');
+    await userEvent.click(screen.getByRole('button', { name: /Save profile/i }));
+    await waitFor(() => expect(mockedApiFetch).toHaveBeenCalledTimes(2));
+    unmount();
+    await act(async () => { resolve(user); });
+    expect(mockedUseAuth().setUser).not.toHaveBeenCalled();
+  });
+
+  it('uses the created access request without querying the list again', async () => {
+    mockedApiFetch.mockImplementation(async (path, init) => {
+      if (path === '/auth/me/avatar/uploads') return { upload_mode: 'disabled' };
+      if (init?.method === 'POST') return {
+        id: 'request-1', site_name: 'Example', site_url: 'https://example.test',
+        request_description: 'Test integration', status: 0, created_at: '2026-10-23T00:00:00Z',
+      };
+      return { items: [], total: 0, pending_count: 0 };
+    });
+    renderProfile('/profile?tab=access-requests');
+    await userEvent.type(screen.getByLabelText('Site name'), 'Example');
+    await userEvent.type(screen.getByLabelText('Site URL'), 'https://example.test');
+    await userEvent.type(screen.getByLabelText('Request description'), 'Test integration');
+    await userEvent.click(screen.getByRole('button', { name: 'Submit request' }));
+    await screen.findByText('Request submitted. Waiting for admin review.');
+    expect(mockedApiFetch.mock.calls.filter(([path, init]) => path === '/auth/me/access-requests' && !init?.method)).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Submit request' })).toBeDisabled();
+  });
+
+  it('stops publishing profile saves as soon as logout starts', async () => {
+    let resolve!: (value: typeof user) => void;
+    mockedApiFetch.mockResolvedValueOnce({ upload_mode: 'disabled' })
+      .mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+    vi.mocked(mockedUseAuth().logout).mockReturnValue(new Promise(() => {}));
+    renderProfile();
+    await userEvent.type(screen.getByLabelText('Display name'), 'Changed');
+    await userEvent.click(screen.getByRole('button', { name: /Save profile/i }));
+    await waitFor(() => expect(mockedApiFetch).toHaveBeenCalledTimes(2));
+    await userEvent.click(screen.getByRole('button', { name: /Sign out/i }));
+    await act(async () => { resolve(user); });
+    expect(mockedUseAuth().setUser).not.toHaveBeenCalled();
   });
 });

@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
 } from 'react';
@@ -27,6 +28,8 @@ const errorText = (error: unknown, fallback: string) =>
     : fallback;
 export default function ClientsPanel() {
   const { t } = useI18n();
+  const queryInput = useRef<HTMLInputElement>(null);
+  const listRequest = useRef<AbortController | null>(null);
 
   const [items, setItems] = useState<AdminClientItem[]>([]),
     [total, setTotal] = useState(0),
@@ -44,6 +47,9 @@ export default function ClientsPanel() {
     pages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total]);
   const load = useCallback(
     async (nextPage: number) => {
+      listRequest.current?.abort();
+      const controller = new AbortController();
+      listRequest.current = controller;
       setLoading(true);
       const p = new URLSearchParams({
         page: String(nextPage),
@@ -53,21 +59,25 @@ export default function ClientsPanel() {
       if (active) p.set('is_active', active);
       try {
         const result = await apiFetch<AdminClientListResponse>(
-          `/admin/clients?${p}`
+          `/admin/clients?${p}`,
+          { signal: controller.signal }
         );
+        if (controller.signal.aborted) return;
         setItems(result.items);
         setTotal(result.total);
         setPage(result.page);
       } catch (error) {
+        if (controller.signal.aborted) return;
         setFeedback(errorText(error, 'Could not load clients.'));
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     },
     [active, query]
   );
   useEffect(() => {
     void load(1);
+    return () => listRequest.current?.abort();
   }, [load]);
   const save = async (event: FormEvent) => {
     event.preventDefault();
@@ -145,8 +155,10 @@ export default function ClientsPanel() {
         </h2>
         <div className="admin-query-row">
           <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            ref={queryInput}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') setQuery(event.currentTarget.value.trim());
+            }}
             aria-label={t('admin.ui.searchClients')}
             placeholder={t('admin.ui.searchClients')}
           />
@@ -155,7 +167,7 @@ export default function ClientsPanel() {
             <option value="true">{t('admin.ui.active')}</option>
             <option value="false">{t('admin.ui.inactive')}</option>
           </select>
-          <button className="btn-secondary" onClick={() => void load(1)}>
+          <button className="btn-secondary" onClick={() => setQuery(queryInput.current?.value.trim() ?? '')}>
             <Search size={14} />
             {t('admin.ui.search')}
           </button>

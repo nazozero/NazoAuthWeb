@@ -1,4 +1,5 @@
 import BrandLogo from '../components/BrandLogo';
+import { useAuth } from '../auth/useAuth';
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -50,6 +51,7 @@ function normalizeUserCode(value: string): string {
 }
 
 export default function Device() {
+  const { setUser } = useAuth();
   const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
@@ -103,6 +105,7 @@ export default function Device() {
           return;
         }
         if (error instanceof ApiError && error.status === 401) {
+          setUser(null);
           navigate(
             buildAuthRedirectWithNext(buildCurrentPath(window.location)),
             {
@@ -124,7 +127,7 @@ export default function Device() {
     return () => {
       active = false;
     };
-  }, [lookupCode, navigate]);
+  }, [lookupCode, navigate, setUser]);
 
   const request = view?.request ?? null;
   const scopes = request?.scopes ?? [];
