@@ -6,8 +6,11 @@ The application is built with React, TypeScript, and Vite. It talks to the NazoA
 
 ## Local Development
 
-Use Node.js 24.16.0 and npm 11.13.x. The repository records both constraints in
+Use Node.js 26.12.1 and npm 12.2.x. The repository records both constraints in
 `.nvmrc` and `package.json`.
+
+TypeScript stays on 6.0.3 while the current `typescript-eslint` release requires
+TypeScript below 6.1. Upgrade that peer contract before adopting TypeScript 7.
 
 ```bash
 npm ci
