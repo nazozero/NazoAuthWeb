@@ -6,6 +6,9 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/frontend.yml'
+      - '.github/workflows/release.yml'
+      - 'scripts/**'
+      - 'tests/**'
       - '.nvmrc'
       - 'eslint.config.js'
       - 'index.html'
@@ -19,6 +22,9 @@ on:
   pull_request:
     paths:
       - '.github/workflows/frontend.yml'
+      - '.github/workflows/release.yml'
+      - 'scripts/**'
+      - 'tests/**'
       - '.nvmrc'
       - 'eslint.config.js'
       - 'index.html'
@@ -50,3 +56,13 @@ jobs:
       - run: npm install --global npm@12.2.1
       - run: npm ci
       - run: npm test
+      - name: Package the tested production UI
+        run: bash scripts/package-release.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nazoauth-web-${{ github.sha }}
+          path: nazoauth-web.tar.gz
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+          overwrite: true

@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
 const workflow = readFileSync('.github/workflows/release.yml', 'utf8')
+const ci = readFileSync('.github/workflows/frontend.yml', 'utf8')
+const pack = readFileSync('scripts/package-release.sh', 'utf8')
 
 test('release publishes one attested UI archive from an immutable tag', () => {
   assert.match(workflow, /push:\s*\n\s*tags:\s*\n\s*- "v\*"/)
@@ -18,9 +20,21 @@ test('release publishes one attested UI archive from an immutable tag', () => {
 })
 
 test('release archive is deterministic, bounded, and contains no symlinks', () => {
-  assert.match(workflow, /find dist -type l/)
-  assert.match(workflow, /--sort=name/)
-  assert.match(workflow, /--mtime='UTC 1970-01-01'/)
-  assert.match(workflow, /gzip -n/)
-  assert.match(workflow, /67108864/)
+  assert.match(pack, /find dist -type l/)
+  assert.match(pack, /--sort=name/)
+  assert.match(pack, /--mtime='UTC 1970-01-01'/)
+  assert.match(pack, /gzip -n/)
+  assert.match(pack, /67108864/)
+  assert.ok(ci.indexOf('npm test') < ci.indexOf('bash scripts/package-release.sh'))
+  assert.match(workflow, /node scripts\/resolve-ci-run\.mjs/)
+  assert.match(workflow, /artifact-ids: \$\{\{ steps\.ci\.outputs\.artifact_id \}\}/)
+  assert.doesNotMatch(workflow, /npm (ci|test|run build)/)
+})
+
+test('manual release verification cannot attest or publish', () => {
+  assert.match(workflow, /workflow_dispatch:/)
+  for (const step of ['Attest UI archive provenance', 'Publish the single UI release artifact']) {
+    const body = workflow.split(`- name: ${step}`)[1].split('\n      - name:')[0]
+    assert.match(body, /if: github\.ref_type == 'tag'/)
+  }
 })
