@@ -36,9 +36,6 @@ export default defineConfig(({ command }) => ({
           if (id.includes('/three/')) {
             return 'vendor-three';
           }
-          if (id.includes('/@marsidev/react-turnstile/')) {
-            return 'vendor-captcha';
-          }
           return 'vendor';
         },
       },

@@ -82,6 +82,7 @@ export default function AccessRequestsPanel() {
   }, [load]);
   const reject = async (event: FormEvent) => {
     event.preventDefault();
+    if (saving) return;
     if (!selected || !note.trim()) {
       setFeedback('Enter a rejection reason.');
       return;
@@ -109,6 +110,7 @@ export default function AccessRequestsPanel() {
   };
   const approve = async (event: FormEvent) => {
     event.preventDefault();
+    if (saving) return;
     if (!selected || !form) return;
     let next;
     try {
@@ -243,10 +245,11 @@ export default function AccessRequestsPanel() {
       {mode === 'approve' && form && (
         <AdminDialog
           label={t('admin.ui.approveAccessRequest')}
-          onDismiss={() => setMode(null)}
+          onDismiss={() => { if (!saving) setMode(null); }}
         >
           <form onSubmit={approve}>
             <h3>{t('admin.ui.approveAccessRequest')}</h3>
+            <fieldset disabled={saving}>
             <ClientFormFields form={form} onChange={setForm} />
             <label>
               {t('admin.ui.adminNote')}
@@ -255,7 +258,8 @@ export default function AccessRequestsPanel() {
                 onChange={(e) => setNote(e.target.value)}
               />
             </label>
-            <button type="button" onClick={() => setMode(null)}>
+            </fieldset>
+            <button type="button" disabled={saving} onClick={() => setMode(null)}>
               {t('admin.ui.cancel')}
             </button>
             <button type="submit" disabled={saving}>
@@ -267,7 +271,7 @@ export default function AccessRequestsPanel() {
       {mode === 'reject' && (
         <AdminDialog
           label={t('admin.ui.rejectAccessRequest')}
-          onDismiss={() => setMode(null)}
+          onDismiss={() => { if (!saving) setMode(null); }}
         >
           <form onSubmit={reject}>
             <h3>{t('admin.ui.rejectAccessRequest')}</h3>
@@ -275,11 +279,12 @@ export default function AccessRequestsPanel() {
               {t('admin.ui.rejectionReason')}
               <textarea
                 aria-label={t('admin.ui.rejectionReason')}
+                disabled={saving}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
               />
             </label>
-            <button type="button" onClick={() => setMode(null)}>
+            <button type="button" disabled={saving} onClick={() => setMode(null)}>
               {t('admin.ui.cancel')}
             </button>
             <button type="submit" disabled={saving}>

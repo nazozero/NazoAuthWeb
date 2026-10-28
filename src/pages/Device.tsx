@@ -1,6 +1,6 @@
 import BrandLogo from '../components/BrandLogo';
 import { useAuth } from '../auth/useAuth';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -55,35 +55,36 @@ export default function Device() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
-  const initialUserCode = useMemo(
+  const lookupCode = useMemo(
     () => new URLSearchParams(location.search).get('user_code')?.trim() ?? '',
     [location.search]
   );
 
-  const [userCode, setUserCode] = useState(initialUserCode);
-  const [lookupCode, setLookupCode] = useState(initialUserCode);
+  const [userCode, setUserCode] = useState(lookupCode);
   const [view, setView] = useState<DeviceVerificationView | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState<'approve' | 'deny' | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [resultMsg, setResultMsg] = useState('');
+  const requestOwner = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    setUserCode(initialUserCode);
-    setLookupCode(initialUserCode);
-  }, [initialUserCode]);
+    setUserCode(lookupCode);
+  }, [lookupCode]);
 
   useEffect(() => {
+    const controller = new AbortController();
+    requestOwner.current = controller;
+    setSubmitting(null);
     const code = normalizeUserCode(lookupCode);
     if (!code) {
       setView(null);
       setErrorMsg('');
       setResultMsg('');
       setLoading(false);
-      return;
+      return () => controller.abort();
     }
 
-    let active = true;
     setLoading(true);
     setErrorMsg('');
     setResultMsg('');
@@ -91,9 +92,9 @@ export default function Device() {
     const loadDeviceView = async () => {
       try {
         const payload = await apiFetch<DeviceVerificationView>(
-          `/device/verification?user_code=${encodeURIComponent(code)}`
+          `/device/verification?user_code=${encodeURIComponent(code)}`, { signal: controller.signal }
         );
-        if (!active) {
+        if (controller.signal.aborted) {
           return;
         }
         setView(payload);
@@ -101,7 +102,7 @@ export default function Device() {
           setErrorMsg('The user code is invalid, expired, or already handled.');
         }
       } catch (error) {
-        if (!active) {
+        if (controller.signal.aborted) {
           return;
         }
         if (error instanceof ApiError && error.status === 401) {
@@ -117,7 +118,7 @@ export default function Device() {
         setView(null);
         setErrorMsg(resolveErrorMessage(error));
       } finally {
-        if (active) {
+        if (!controller.signal.aborted) {
           setLoading(false);
         }
       }
@@ -125,7 +126,7 @@ export default function Device() {
 
     void loadDeviceView();
     return () => {
-      active = false;
+      controller.abort();
     };
   }, [lookupCode, navigate, setUser]);
 
@@ -135,15 +136,16 @@ export default function Device() {
 
   const handleLookupSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (submitting) return;
     const nextCode = normalizeUserCode(userCode);
-    setLookupCode(nextCode);
     const search = nextCode ? `?user_code=${encodeURIComponent(nextCode)}` : '';
     navigate(`/device${search}`, { replace: true });
   };
 
   const submitDecision = async (decision: 'approve' | 'deny') => {
-    const code = normalizeUserCode(view?.user_code || lookupCode || userCode);
-    if (!code) {
+    const owner = requestOwner.current;
+    const code = normalizeUserCode(view?.user_code || lookupCode);
+    if (!code || !owner || owner.signal.aborted) {
       setErrorMsg('Enter the user code shown on the device.');
       return;
     }
@@ -166,6 +168,7 @@ export default function Device() {
         },
         body: body.toString(),
       });
+      if (owner.signal.aborted) return;
       setResultMsg(
         decision === 'approve'
           ? t('account.ui.deviceAuthorizationApprovedYouCanReturnToTheDevice')
@@ -173,9 +176,9 @@ export default function Device() {
       );
       setView(null);
     } catch (error) {
-      setErrorMsg(resolveErrorMessage(error));
+      if (!owner.signal.aborted) setErrorMsg(resolveErrorMessage(error));
     } finally {
-      setSubmitting(null);
+      if (!owner.signal.aborted) setSubmitting(null);
     }
   };
 
@@ -210,6 +213,7 @@ export default function Device() {
                 className="clean-input"
                 name="user_code"
                 value={userCode}
+                disabled={submitting !== null}
                 onChange={(event) => setUserCode(event.target.value)}
                 autoComplete="one-time-code"
                 spellCheck={false}
@@ -218,7 +222,7 @@ export default function Device() {
               <button
                 className="btn-secondary"
                 type="submit"
-                disabled={loading}
+                disabled={loading || submitting !== null}
               >
                 <KeyRound size={16} />
                 <span>

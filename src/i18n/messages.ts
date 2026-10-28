@@ -61,6 +61,8 @@ export const messages = {
     'consent.secured': 'Secured by NazoAuth',
     'consent.as': 'Approving as',
     'consent.loading': 'Loading authorization request...',
+    'consent.accountCheckFailed': 'Could not verify the current account.',
+    'consent.retryAccountCheck': 'Retry',
     'admin.ui.userManagement': 'User management',
     'admin.ui.searchByEmailOrUserName': 'Search by email or user name',
     'admin.ui.allRoles': 'All roles',
@@ -91,6 +93,7 @@ export const messages = {
     'admin.ui.editClient': 'Edit client',
     'admin.ui.clientSecretShownOnce': 'Client secret (shown once):',
     'admin.ui.cancel': 'Cancel',
+    'admin.ui.done': 'Done',
     'admin.ui.saveNewClient': 'Save new client',
     'admin.ui.saveClientChanges': 'Save client changes',
     'admin.ui.grants': 'Grants',
@@ -260,11 +263,12 @@ export const messages = {
     'ciba.error.unavailable': 'The authorization request is unavailable.',
     'ciba.error.decision': 'Could not submit the authorization decision.',
     'ciba.warning.statusReloaded':
-      'The network response was interrupted. Current status was reloaded and the request is still pending; review it before acting again.',
+      'The decision result was uncertain. Current status was reloaded and the request is still pending; review it before acting again.',
     'ciba.warning.mayBeProcessed':
-      'The network response was interrupted. The request may already have been processed; do not submit it again.',
+      'The decision result was uncertain. The request may already have been processed; do not submit it again.',
+    'ciba.retryStatus': 'Check status again',
     'ciba.warning.statusUnknown':
-      'The network response was interrupted and the request status could not be confirmed. Reopen this page later to verify the result.',
+      'The decision result was uncertain and the request status could not be confirmed. Check the status again before deciding.',
     'ciba.success.approved': 'Backchannel authorization approved.',
     'ciba.success.denied': 'Backchannel authorization denied.',
     'ciba.requestingClient': 'Requesting client',
@@ -296,24 +300,10 @@ export const messages = {
     'nav.backHome': 'Back to home',
     'nav.switchToChinese': '中文',
     'nav.switchToEnglish': 'EN',
-    'auth.error.securityLoading':
-      'Security check is still loading. Please try again.',
-    'auth.error.securityRunning':
-      'Security check is already running. Please wait.',
-    'auth.error.securityStart':
-      'Security check failed to start. Please try again.',
-    'auth.error.securityFailed': 'Security check failed. Please try again.',
-    'auth.error.securityCancelled':
-      'Security check was cancelled. Please try again.',
-    'auth.error.pageInactive':
-      'This page is no longer active. Please try again.',
-    'auth.error.securityExpired': 'Security check expired. Please try again.',
     'auth.error.sendCode':
       'Could not send the verification code. Please try again.',
     'auth.error.login': 'Sign-in failed. Please check your credentials.',
     'auth.error.emailFirst': 'Enter an email address first.',
-    'auth.error.registrationClosed':
-      'Registration is currently closed. Contact an administrator.',
     'auth.error.registerRequired':
       'Enter your email, verification code, and password.',
     'auth.error.registerFailed':
@@ -342,8 +332,6 @@ export const messages = {
     'auth.forgot': 'Forgot password?',
     'auth.helpReset':
       'Self-service password reset is not available. Visit support to contact an administrator for the next step.',
-    'auth.button.preparing': 'Preparing sign in...',
-    'auth.button.checking': 'Checking security...',
     'auth.button.signIn': 'Sign in',
     'auth.button.create': 'Create account',
     'auth.button.contactAdmin': 'Get account support',
@@ -351,24 +339,6 @@ export const messages = {
     'auth.createAccount': 'Create account',
     'auth.alreadyRegistered': 'Have an account?',
     'auth.backToSignIn': 'Back to sign in',
-    'auth.captchaTitle': 'Security check',
-    'auth.captchaAction': 'Start verification',
-    'setup.title': 'Create administrator',
-    'setup.subtitle':
-      'Create the administrator for this instance. Your setup invitation is valid once and expires after use.',
-    'setup.email': 'Administrator email',
-    'setup.password': 'Password (12–1024 characters)',
-    'setup.submit': 'Create administrator',
-    'setup.submitting': 'Creating administrator...',
-    'setup.error.invalidLink':
-      'This setup link is missing, invalid, expired, or already used.',
-    'setup.error.required':
-      'Enter a valid email and a password of 12–1024 characters.',
-    'setup.error.failed': 'Could not create the initial administrator.',
-    'setup.success.title': 'Administrator created',
-    'setup.success.body':
-      'Your administrator account is ready. Sign in to start managing this instance.',
-    'setup.success.signIn': 'Continue to sign in',
     'contact.eyebrow': 'SUPPORT',
     'contact.title': 'Contact support',
     'contact.subtitle':
@@ -437,6 +407,8 @@ export const messages = {
     'consent.secured': '由 NazoAuth 保护',
     'consent.as': '当前授权账户',
     'consent.loading': '正在读取授权请求…',
+    'consent.accountCheckFailed': '无法确认当前账户。',
+    'consent.retryAccountCheck': '重试',
     'admin.ui.userManagement': '用户管理',
     'admin.ui.searchByEmailOrUserName': '搜索邮箱或用户名称',
     'admin.ui.allRoles': '所有角色',
@@ -467,6 +439,7 @@ export const messages = {
     'admin.ui.editClient': '编辑客户端',
     'admin.ui.clientSecretShownOnce': '客户端密钥（仅展示一次）：',
     'admin.ui.cancel': '取消',
+    'admin.ui.done': '完成',
     'admin.ui.saveNewClient': '创建客户端',
     'admin.ui.saveClientChanges': '保存客户端变更',
     'admin.ui.grants': '授权记录',
@@ -628,11 +601,12 @@ export const messages = {
     'ciba.error.unavailable': '授权请求当前不可用。',
     'ciba.error.decision': '无法提交授权决定。',
     'ciba.warning.statusReloaded':
-      '网络响应中断。当前状态已重新加载，请求仍待处理；再次操作前请重新核对。',
+      '授权决定结果不确定。当前状态已重新加载，请求仍待处理；再次操作前请重新核对。',
     'ciba.warning.mayBeProcessed':
-      '网络响应中断。请求可能已经处理，请勿重复提交。',
+      '授权决定结果不确定。请求可能已经处理，请勿重复提交。',
+    'ciba.retryStatus': '重新检查状态',
     'ciba.warning.statusUnknown':
-      '网络响应中断，暂时无法确认请求状态。请稍后重新进入此页面核对结果。',
+      '授权决定结果不确定，暂时无法确认请求状态。请重新检查状态后再决定。',
     'ciba.success.approved': '后端通道授权已批准。',
     'ciba.success.denied': '后端通道授权已拒绝。',
     'ciba.requestingClient': '请求授权的客户端',
@@ -664,17 +638,9 @@ export const messages = {
     'nav.backHome': '返回首页',
     'nav.switchToChinese': '中文',
     'nav.switchToEnglish': 'EN',
-    'auth.error.securityLoading': '安全检查仍在加载，请稍后重试。',
-    'auth.error.securityRunning': '安全检查正在运行，请稍候。',
-    'auth.error.securityStart': '安全检查启动失败，请重试。',
-    'auth.error.securityFailed': '安全检查失败，请重试。',
-    'auth.error.securityCancelled': '安全检查已取消，请重试。',
-    'auth.error.pageInactive': '当前页面已失效，请重试。',
-    'auth.error.securityExpired': '安全检查已过期，请重试。',
     'auth.error.sendCode': '验证码发送失败，请重试。',
     'auth.error.login': '登录失败，请检查邮箱和密码。',
     'auth.error.emailFirst': '请先输入邮箱地址。',
-    'auth.error.registrationClosed': '当前暂未开放注册，请联系管理员。',
     'auth.error.registerRequired': '请输入邮箱、验证码和密码。',
     'auth.error.registerFailed': '账号创建失败，请重试。',
     'auth.error.loginRequired': '请输入邮箱和密码。',
@@ -700,8 +666,6 @@ export const messages = {
     'auth.forgot': '忘记密码？',
     'auth.helpReset':
       '暂不支持自助重置密码。前往支持页面联系管理员，获取恢复账户的帮助。',
-    'auth.button.preparing': '正在准备登录...',
-    'auth.button.checking': '正在安全检查...',
     'auth.button.signIn': '登录',
     'auth.button.create': '创建账号',
     'auth.button.contactAdmin': '获取账户帮助',
@@ -709,21 +673,6 @@ export const messages = {
     'auth.createAccount': '创建账号',
     'auth.alreadyRegistered': '已经有账户了？',
     'auth.backToSignIn': '返回登录',
-    'auth.captchaTitle': '安全检查',
-    'auth.captchaAction': '开始验证',
-    'setup.title': '创建管理员',
-    'setup.subtitle':
-      '为当前实例创建管理员。此设置邀请仅可使用一次，完成后立即失效。',
-    'setup.email': '管理员邮箱',
-    'setup.password': '密码（12–1024 个字符）',
-    'setup.submit': '创建管理员',
-    'setup.submitting': '正在创建管理员…',
-    'setup.error.invalidLink': '此设置链接缺失、无效、已过期或已经使用。',
-    'setup.error.required': '请输入有效邮箱和 12–1024 个字符的密码。',
-    'setup.error.failed': '无法创建初始管理员。',
-    'setup.success.title': '管理员已创建',
-    'setup.success.body': '管理员账户已创建。登录后即可开始管理当前实例。',
-    'setup.success.signIn': '继续登录',
     'contact.eyebrow': '支持',
     'contact.title': '联系支持',
     'contact.subtitle': '账户、应用接入和部署问题，可通过以下方式联系我们。',

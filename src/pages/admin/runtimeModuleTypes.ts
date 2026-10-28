@@ -1,6 +1,6 @@
-export type RuntimeDesiredMode = 'inherit' | 'enabled' | 'disabled';
+export type RuntimeDesiredMode = 'enabled' | 'disabled';
 export type RuntimeActualState = 'disabled' | 'starting' | 'enabled' | 'draining' | 'failed';
-export type RuntimeModuleAction = 'inherit' | 'enable' | 'disable';
+export type RuntimeModuleAction = 'enable' | 'disable';
 export type RuntimeDisablePolicy =
   | 'immediate'
   | 'finish_executing_requests'

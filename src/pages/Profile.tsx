@@ -529,6 +529,7 @@ export default function Profile() {
                   id="display_name"
                   type="text"
                   value={displayName}
+                  disabled={savingProfile}
                   onChange={(event) => setDisplayName(event.target.value)}
                   maxLength={80}
                   placeholder="Enter your display name"
@@ -541,8 +542,9 @@ export default function Profile() {
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
                   disabled={
-                    avatarUploadMode !== 'multipart' &&
-                    avatarUploadMode !== 'direct'
+                    savingProfile ||
+                    (avatarUploadMode !== 'multipart' &&
+                    avatarUploadMode !== 'direct')
                   }
                   onChange={(event) => {
                     const file = event.target.files?.[0] ?? null;
@@ -563,6 +565,7 @@ export default function Profile() {
                 <AnimatePresence initial={false}>
                   {profileErrorMsg && (
                     <motion.div
+                      key="profile-error"
                       className="profile-alert error"
                       variants={alertVariants}
                       initial="initial"
@@ -574,6 +577,7 @@ export default function Profile() {
                   )}
                   {profileSuccessMsg && (
                     <motion.div
+                      key="profile-success"
                       className="profile-alert success"
                       variants={alertVariants}
                       initial="initial"
@@ -727,6 +731,7 @@ export default function Profile() {
                 <AnimatePresence initial={false}>
                   {pendingRequest && (
                     <motion.div
+                      key="request-pending"
                       className="profile-alert warning"
                       variants={alertVariants}
                       initial="initial"
@@ -740,6 +745,7 @@ export default function Profile() {
                   )}
                   {requestErrorMsg && (
                     <motion.div
+                      key="request-error"
                       className="profile-alert error"
                       variants={alertVariants}
                       initial="initial"
@@ -751,6 +757,7 @@ export default function Profile() {
                   )}
                   {requestSuccessMsg && (
                     <motion.div
+                      key="request-success"
                       className="profile-alert success"
                       variants={alertVariants}
                       initial="initial"
@@ -832,6 +839,7 @@ export default function Profile() {
                 <AnimatePresence initial={false}>
                   {deliveryErrorMsg && (
                     <motion.div
+                      key="delivery-error"
                       className="profile-alert error"
                       variants={alertVariants}
                       initial="initial"
@@ -843,6 +851,7 @@ export default function Profile() {
                   )}
                   {deliveryResult && (
                     <motion.div
+                      key="delivery-result"
                       className="delivery-card"
                       variants={contentSwitchVariants}
                       initial="initial"

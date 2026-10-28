@@ -15,7 +15,6 @@ import './App.css';
 
 const Home = lazy(() => import('./pages/Home'));
 const Auth = lazy(() => import('./pages/Auth'));
-const Setup = lazy(() => import('./pages/Setup'));
 const Security = lazy(() => import('./pages/Security'));
 const Docs = lazy(() => import('./pages/Docs'));
 const Contact = lazy(() => import('./pages/Contact'));
@@ -68,7 +67,6 @@ function MainRoutes() {
               </RequireAuth>
             }
           />
-          <Route path="/setup" element={<Setup />} />
           <Route
             path="/ciba/:authReqId"
             element={
@@ -119,7 +117,6 @@ function AppShell() {
       '/admin': ['Administration', '管理工作台'],
       '/consent': ['Review access', '确认授权'],
       '/device': ['Connect your device', '连接设备'],
-      '/setup': ['Welcome to your instance', '设置你的实例'],
     };
     const title =
       titles[location.pathname]?.[locale === 'zh-CN' ? 1 : 0] ?? 'NazoAuth';
@@ -127,7 +124,6 @@ function AppShell() {
   }, [location.pathname, locale]);
   const isIsolatedPage =
     location.pathname === '/consent' ||
-    location.pathname === '/setup' ||
     location.pathname === '/device' ||
     location.pathname.startsWith('/ciba/');
 

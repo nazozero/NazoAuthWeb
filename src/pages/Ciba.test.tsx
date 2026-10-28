@@ -16,7 +16,7 @@ it.each([new ApiError('expired', 401, null), new Error('connection lost')])(
   'does not publish or reload a decision after leaving its request (%s)', async (failure) => {
     const setUser = vi.fn();
     vi.mocked(useAuth).mockReturnValue({ user: null, setUser, loading: false,
-      sessionChecked: true, refreshSession: vi.fn(), logout: vi.fn() });
+      sessionChecked: true, sessionError: false, refreshSession: vi.fn(), logout: vi.fn() });
     let reject!: (error: Error) => void;
     vi.mocked(apiFetch).mockReset().mockResolvedValueOnce({ auth_req_id: 'request-1',
       request: { client_id: 'client', client_name: 'Client', scopes: [], audiences: [],
@@ -32,3 +32,27 @@ it.each([new ApiError('expired', 401, null), new Error('connection lost')])(
     expect(apiFetch).toHaveBeenCalledTimes(2);
   }
 );
+
+it.each([true, false])('reconciles a 503 decision and blocks retries when status is unknown (reload succeeds: %s)', async (reloadSucceeds) => {
+  vi.mocked(useAuth).mockReturnValue({ user: null, setUser: vi.fn(), loading: false,
+    sessionChecked: true, sessionError: false, refreshSession: vi.fn(), logout: vi.fn() });
+  const initial = { auth_req_id: 'request-1', request: { client_id: 'client', client_name: 'Client', scopes: [], audiences: [],
+    interval_seconds: 5, issued_at: '2026-10-23T00:00:00Z', expires_at: '2026-10-23T00:10:00Z' } };
+  vi.mocked(apiFetch).mockReset().mockResolvedValueOnce(initial)
+    .mockRejectedValueOnce(new ApiError('unavailable', 503, null));
+  if (reloadSucceeds) vi.mocked(apiFetch).mockResolvedValueOnce({ auth_req_id: 'request-1', request: null });
+  else vi.mocked(apiFetch).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(initial);
+  render(<MemoryRouter initialEntries={['/ciba/request-1']}><I18nProvider><Routes>
+    <Route path="/ciba/:authReqId" element={<Ciba />} />
+  </Routes></I18nProvider></MemoryRouter>);
+  await userEvent.click(await screen.findByRole('button', { name: 'Approve' }));
+  if (reloadSucceeds) {
+    expect(await screen.findByText(/may already have been processed/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
+  } else {
+    const retry = await screen.findByRole('button', { name: 'Check status again' });
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled();
+    await userEvent.click(retry);
+    expect(await screen.findByRole('button', { name: 'Approve' })).toBeEnabled();
+  }
+});

@@ -30,6 +30,7 @@ export default function ClientsPanel() {
   const { t } = useI18n();
   const queryInput = useRef<HTMLInputElement>(null);
   const listRequest = useRef<AbortController | null>(null);
+  const mutationInFlight = useRef(false);
 
   const [items, setItems] = useState<AdminClientItem[]>([]),
     [total, setTotal] = useState(0),
@@ -81,6 +82,7 @@ export default function ClientsPanel() {
   }, [load]);
   const save = async (event: FormEvent) => {
     event.preventDefault();
+    if (mutationInFlight.current || secret) return;
     setFeedback('');
     setSecret('');
     let next;
@@ -90,7 +92,9 @@ export default function ClientsPanel() {
       setFeedback(errorText(error, 'Invalid client.'));
       return;
     }
+    mutationInFlight.current = true;
     setSaving(true);
+    const owner = listRequest.current;
     try {
       const creating = modal === 'create';
       const result = await apiFetch<AdminClientItem>(
@@ -115,6 +119,7 @@ export default function ClientsPanel() {
           }),
         }
       );
+      if (owner?.signal.aborted) return;
       setFeedback(
         creating ? `Client created: ${result.client_id}` : 'Client updated.'
       );
@@ -122,12 +127,16 @@ export default function ClientsPanel() {
       setModal(creating && result.client_secret ? 'create' : null);
       await load(1);
     } catch (error) {
-      setFeedback(errorText(error, 'Could not save client.'));
+      if (!owner?.signal.aborted) setFeedback(errorText(error, 'Could not save client.'));
     } finally {
+      mutationInFlight.current = false;
       setSaving(false);
     }
   };
   const toggle = async (item: AdminClientItem) => {
+    if (mutationInFlight.current || modal) return;
+    mutationInFlight.current = true;
+    setSaving(true);
     try {
       const updated = await apiFetch<AdminClientItem>(
         `/admin/clients/${encodeURIComponent(item.client_id)}`,
@@ -144,6 +153,9 @@ export default function ClientsPanel() {
       );
     } catch (error) {
       setFeedback(errorText(error, 'Could not update client.'));
+    } finally {
+      mutationInFlight.current = false;
+      setSaving(false);
     }
   };
   return (
@@ -156,23 +168,25 @@ export default function ClientsPanel() {
         <div className="admin-query-row">
           <input
             ref={queryInput}
+            disabled={saving}
             onKeyDown={(event) => {
               if (event.key === 'Enter') setQuery(event.currentTarget.value.trim());
             }}
             aria-label={t('admin.ui.searchClients')}
             placeholder={t('admin.ui.searchClients')}
           />
-          <select value={active} onChange={(e) => setActive(e.target.value)}>
+          <select disabled={saving} value={active} onChange={(e) => setActive(e.target.value)}>
             <option value="">{t('admin.ui.allStates')}</option>
             <option value="true">{t('admin.ui.active')}</option>
             <option value="false">{t('admin.ui.inactive')}</option>
           </select>
-          <button className="btn-secondary" onClick={() => setQuery(queryInput.current?.value.trim() ?? '')}>
+          <button disabled={saving} className="btn-secondary" onClick={() => setQuery(queryInput.current?.value.trim() ?? '')}>
             <Search size={14} />
             {t('admin.ui.search')}
           </button>
           <button
             className="btn-primary"
+            disabled={saving}
             onClick={() => {
               setForm(initialClientForm());
               setModal('create');
@@ -204,6 +218,7 @@ export default function ClientsPanel() {
               <div className="admin-list-actions">
                 <button
                   className="btn-secondary"
+                  disabled={saving}
                   onClick={() => {
                     setEditId(item.client_id);
                     setForm(clientToForm(item));
@@ -215,6 +230,7 @@ export default function ClientsPanel() {
                 </button>
                 <button
                   className="btn-secondary"
+                  disabled={saving}
                   onClick={() => void toggle(item)}
                 >
                   {item.is_active
@@ -231,10 +247,10 @@ export default function ClientsPanel() {
           {t('admin.ui.page')} {page}/{pages} {t('admin.ui.of')} {total}{' '}
           {t('admin.ui.items')}
         </span>
-        <button disabled={page <= 1} onClick={() => void load(page - 1)}>
+        <button disabled={saving || page <= 1} onClick={() => void load(page - 1)}>
           {t('admin.ui.previous')}
         </button>
-        <button disabled={page >= pages} onClick={() => void load(page + 1)}>
+        <button disabled={saving || page >= pages} onClick={() => void load(page + 1)}>
           {t('admin.ui.next')}
         </button>
       </footer>
@@ -245,7 +261,7 @@ export default function ClientsPanel() {
               ? t('admin.ui.createClient')
               : t('admin.ui.editClient')
           }
-          onDismiss={() => setModal(null)}
+          onDismiss={() => { if (!saving) { setModal(null); setSecret(''); } }}
         >
           <form onSubmit={save}>
             <h3>
@@ -253,24 +269,26 @@ export default function ClientsPanel() {
                 ? t('admin.ui.createClient')
                 : t('admin.ui.editClient')}
             </h3>
+            {!secret && <fieldset disabled={saving}>
             <ClientFormFields
               form={form}
               onChange={setForm}
               includeActive={modal === 'edit'}
             />
+            </fieldset>}
             {secret && (
               <p>
                 {t('admin.ui.clientSecretShownOnce')} <code>{secret}</code>
               </p>
             )}
-            <button type="button" onClick={() => setModal(null)}>
-              {t('admin.ui.cancel')}
+            <button type="button" disabled={saving} onClick={() => { setModal(null); setSecret(''); }}>
+              {secret ? t('admin.ui.done') : t('admin.ui.cancel')}
             </button>
-            <button type="submit" className="btn-primary" disabled={saving}>
+            {!secret && <button type="submit" className="btn-primary" disabled={saving}>
               {modal === 'create'
                 ? t('admin.ui.saveNewClient')
                 : t('admin.ui.saveClientChanges')}
-            </button>
+            </button>}
           </form>
         </AdminDialog>
       )}

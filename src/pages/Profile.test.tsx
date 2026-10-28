@@ -43,10 +43,28 @@ describe('Profile avatar uploads', () => {
       user,
       loading: false,
       sessionChecked: true,
+      sessionError: false,
       refreshSession: vi.fn(),
       setUser: vi.fn(),
       logout: vi.fn(),
     });
+  });
+
+  it('locks profile inputs while the submitted changes are saving', async () => {
+    let resolveSave!: (value: unknown) => void;
+    mockedApiFetch.mockResolvedValueOnce({ upload_mode: 'multipart' })
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveSave = resolve; }));
+    renderProfile();
+    const name = await screen.findByLabelText('Display name');
+    const avatar = await screen.findByLabelText('Upload avatar');
+    await waitFor(() => expect(avatar).toBeEnabled());
+    await userEvent.type(name, 'New name');
+    await userEvent.click(screen.getByRole('button', { name: /Save profile/i }));
+    expect(name).toBeDisabled();
+    expect(avatar).toBeDisabled();
+    await act(async () => { resolveSave({ ...user, display_name: 'New name' }); });
+    expect(name).toBeEnabled();
+    expect(avatar).toBeEnabled();
   });
 
   it('uploads direct avatars to the returned URL without application credentials', async () => {
@@ -180,3 +198,4 @@ describe('Profile avatar uploads', () => {
     expect(mockedUseAuth().setUser).not.toHaveBeenCalled();
   });
 });
+

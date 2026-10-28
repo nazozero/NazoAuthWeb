@@ -68,6 +68,8 @@ export default function GrantsPanel() {
     return () => listRequest.current?.abort();
   }, [load]);
   const revoke = async (item: AdminGrantItem) => {
+    if (busy) return;
+    const owner = listRequest.current;
     const key = `${item.user_id}:${item.client_id}`;
     setBusy(key);
     setFeedback(null);
@@ -83,12 +85,14 @@ export default function GrantsPanel() {
           }),
         }
       );
+      if (owner?.signal.aborted) return;
       setFeedback({
         error: false,
         text: `Revoked: ${result.revoked_refresh_tokens} refresh tokens, ${result.removed_grants} grant records.`,
       });
       await load(page);
     } catch (error) {
+      if (owner?.signal.aborted) return;
       setFeedback({
         error: true,
         text:
@@ -97,7 +101,7 @@ export default function GrantsPanel() {
             : 'Could not revoke grant.',
       });
     } finally {
-      setBusy('');
+      if (!listRequest.current?.signal.aborted) setBusy('');
     }
   };
   return (
@@ -110,6 +114,7 @@ export default function GrantsPanel() {
         <div className="admin-query-row">
           <input
             ref={queryInput}
+            disabled={Boolean(busy)}
             onKeyDown={(event) => {
               if (event.key === 'Enter') setQuery(event.currentTarget.value.trim());
             }}
@@ -119,7 +124,7 @@ export default function GrantsPanel() {
           <button
             type="button"
             className="btn-secondary"
-            disabled={loading}
+            disabled={loading || Boolean(busy)}
             onClick={() => setQuery(queryInput.current?.value.trim() ?? '')}
           >
             <Search size={14} />
@@ -167,7 +172,7 @@ export default function GrantsPanel() {
                   <button
                     type="button"
                     className="btn-secondary danger"
-                    disabled={busy === key}
+                    disabled={Boolean(busy)}
                     onClick={() => void revoke(item)}
                   >
                     <Ban size={14} />
@@ -190,7 +195,7 @@ export default function GrantsPanel() {
           <button
             type="button"
             className="btn-secondary"
-            disabled={page <= 1 || loading}
+            disabled={page <= 1 || loading || Boolean(busy)}
             onClick={() => void load(page - 1)}
           >
             {t('admin.ui.previous')}
@@ -198,7 +203,7 @@ export default function GrantsPanel() {
           <button
             type="button"
             className="btn-secondary"
-            disabled={page >= pages || loading}
+            disabled={page >= pages || loading || Boolean(busy)}
             onClick={() => void load(page + 1)}
           >
             {t('admin.ui.next')}

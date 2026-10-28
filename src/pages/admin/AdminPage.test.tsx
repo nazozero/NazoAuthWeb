@@ -30,6 +30,7 @@ function renderAdmin(adminLevel: number) {
     },
     loading: false,
     sessionChecked: true,
+    sessionError: false,
     refreshSession: vi.fn(),
     setUser: vi.fn(),
     logout: vi.fn(),

@@ -22,7 +22,7 @@ function status(overrides: Partial<RuntimeModuleStatus> = {}): RuntimeModuleStat
     applied_revision: 7,
     dependencies: [],
     dependents: [],
-    allowed_actions: ['inherit', 'disable'],
+    allowed_actions: ['disable'],
     disable_policy: 'drain_stored_transactions:300s',
     drain_deadline: null,
     failure_code: null,

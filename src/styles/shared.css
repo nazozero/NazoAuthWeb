@@ -251,48 +251,6 @@
   background: #94611e07;
   border-color: #94611e24;
 }
-.captcha-modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 150;
-  background: #02040abc;
-  backdrop-filter: blur(8px);
-  display: grid;
-  place-items: center;
-  padding: 20px;
-}
-.captcha-modal {
-  padding: 32px;
-  border-radius: 22px;
-  width: min(100%, 440px);
-}
-.captcha-modal h2 {
-  font-size: 26px;
-}
-.captcha-modal p {
-  margin: 12px 0;
-  color: var(--muted);
-}
-.captcha-widget-wrap {
-  min-height: 90px;
-  margin-block: 24px;
-}
-.captcha-modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-.captcha-modal-error {
-  color: var(--danger);
-}
-.turnstile-auto-hidden {
-  position: fixed;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  opacity: 0;
-  pointer-events: none;
-}
 #auth-fallback.auth-fallback-shell,
 #consent-fallback.consent-fallback-shell {
   min-height: 100dvh;

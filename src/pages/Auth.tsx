@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { Mail, Lock, Shield, ArrowRight } from 'lucide-react';
-import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   clientIdFromAuthorizationNext,
@@ -10,43 +9,20 @@ import {
 } from '../auth/clientPresentation';
 import { resolveSafeNextFromSearch } from '../auth/next';
 import { useAuth } from '../auth/useAuth';
-import CaptchaModal from '../components/CaptchaModal';
 import { useI18n } from '../i18n';
 import { apiFetch } from '../lib/api';
 import { alertVariants, pageVariants } from '../lib/motion';
 import BrandLogo from '../components/BrandLogo';
-import type { CaptchaConfig } from '../types/auth';
 import './Auth.css';
 
 type AuthState = 'login' | 'register' | 'forgot';
-type ProtectedAction = 'login' | 'send-code';
-
-const DEFAULT_CAPTCHA_CONFIG: CaptchaConfig = {
-  turnstile_enabled: false,
-  turnstile_site_key: null,
-  registration_enabled: true,
-};
+type AuthAction = 'login' | 'send-code';
 
 function resolveErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) {
     return error.message;
   }
   return fallback;
-}
-
-function normalizeCaptchaConfig(value: unknown): CaptchaConfig {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return DEFAULT_CAPTCHA_CONFIG;
-  }
-  const candidate = value as Partial<CaptchaConfig>;
-  return {
-    turnstile_enabled: candidate.turnstile_enabled === true,
-    turnstile_site_key:
-      typeof candidate.turnstile_site_key === 'string'
-        ? candidate.turnstile_site_key
-        : null,
-    registration_enabled: candidate.registration_enabled !== false,
-  };
 }
 
 export default function Auth() {
@@ -77,50 +53,6 @@ export default function Auth() {
   const [successMsg, setSuccessMsg] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const [captchaConfig, setCaptchaConfig] = useState<CaptchaConfig>(
-    DEFAULT_CAPTCHA_CONFIG
-  );
-  const [captchaConfigLoading, setCaptchaConfigLoading] = useState(true);
-  const [captchaModalOpen, setCaptchaModalOpen] = useState(false);
-  const [pendingAction, setPendingAction] = useState<ProtectedAction | null>(
-    null
-  );
-  const [autoCaptchaRunning, setAutoCaptchaRunning] = useState(false);
-  const loginTurnstileRef = useRef<TurnstileInstance | undefined>(undefined);
-  const loginCaptchaPromiseRef = useRef<{
-    resolve: (token: string) => void;
-    reject: (reason: Error) => void;
-  } | null>(null);
-
-  const captchaEnabled =
-    captchaConfig.turnstile_enabled &&
-    Boolean(captchaConfig.turnstile_site_key);
-
-  const clearLoginCaptchaPromise = () => {
-    loginCaptchaPromiseRef.current = null;
-  };
-
-  const requestLoginTurnstileToken = (): Promise<string> => {
-    if (!captchaEnabled || !captchaConfig.turnstile_site_key) {
-      return Promise.resolve('');
-    }
-    if (!loginTurnstileRef.current) {
-      return Promise.reject(new Error(t('auth.error.securityLoading')));
-    }
-    if (loginCaptchaPromiseRef.current) {
-      return Promise.reject(new Error(t('auth.error.securityRunning')));
-    }
-    return new Promise<string>((resolve, reject) => {
-      loginCaptchaPromiseRef.current = { resolve, reject };
-      try {
-        loginTurnstileRef.current?.execute();
-      } catch {
-        clearLoginCaptchaPromise();
-        reject(new Error(t('auth.error.securityStart')));
-      }
-    });
-  };
-
   useEffect(() => {
     const controller = new AbortController();
     setClientPresentation(null);
@@ -148,59 +80,13 @@ export default function Auth() {
   }, [authorizationClientId]);
 
   useEffect(() => {
-    let active = true;
-    const loadCaptchaConfig = async () => {
-      try {
-        const config = await apiFetch<unknown>('/auth/captcha-config');
-        if (active) {
-          setCaptchaConfig(normalizeCaptchaConfig(config));
-        }
-      } catch {
-        if (active) {
-          setCaptchaConfig(DEFAULT_CAPTCHA_CONFIG);
-        }
-      } finally {
-        if (active) {
-          setCaptchaConfigLoading(false);
-        }
-      }
-    };
-
-    void loadCaptchaConfig();
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
     setEmail('');
     setPassword('');
     setCode('');
     setErrorMsg('');
     setSuccessMsg('');
     setCountdown(0);
-    setPendingAction(null);
-    setCaptchaModalOpen(false);
-    setAutoCaptchaRunning(false);
-    if (loginCaptchaPromiseRef.current) {
-      loginCaptchaPromiseRef.current.reject(
-        new Error(t('auth.error.securityCancelled'))
-      );
-      clearLoginCaptchaPromise();
-    }
-  }, [authState, t]);
-
-  useEffect(
-    () => () => {
-      if (loginCaptchaPromiseRef.current) {
-        loginCaptchaPromiseRef.current.reject(
-          new Error(t('auth.error.pageInactive'))
-        );
-        clearLoginCaptchaPromise();
-      }
-    },
-    [t]
-  );
+  }, [authState]);
 
   useEffect(() => {
     if (countdown <= 0) {
@@ -236,10 +122,7 @@ export default function Auth() {
 
   const currentDirection = authState === 'login' ? -1 : 1;
 
-  const performProtectedAction = async (
-    action: ProtectedAction,
-    turnstileToken: string | null
-  ) => {
+  const performAction = async (action: AuthAction) => {
     setSubmitting(true);
     setErrorMsg('');
     setSuccessMsg('');
@@ -254,7 +137,6 @@ export default function Auth() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               email,
-              turnstile_token: turnstileToken,
             }),
           }
         );
@@ -272,7 +154,6 @@ export default function Auth() {
           body: JSON.stringify({
             email,
             password,
-            turnstile_token: turnstileToken,
           }),
         }
       );
@@ -298,36 +179,6 @@ export default function Auth() {
     }
   };
 
-  const triggerProtectedAction = (action: ProtectedAction) => {
-    if (captchaConfigLoading) {
-      setErrorMsg(t('auth.error.securityLoading'));
-      return;
-    }
-
-    if (!captchaEnabled) {
-      void performProtectedAction(action, null);
-      return;
-    }
-
-    if (action === 'login') {
-      setAutoCaptchaRunning(true);
-      void requestLoginTurnstileToken()
-        .then((token) => performProtectedAction(action, token))
-        .catch((error: unknown) => {
-          setErrorMsg(
-            resolveErrorMessage(error, t('auth.error.securityFailed'))
-          );
-        })
-        .finally(() => {
-          setAutoCaptchaRunning(false);
-        });
-      return;
-    }
-
-    setPendingAction(action);
-    setCaptchaModalOpen(true);
-  };
-
   const handleSendCode = () => {
     if (!email) {
       setErrorMsg(t('auth.error.emailFirst'));
@@ -336,7 +187,7 @@ export default function Auth() {
     if (countdown > 0) {
       return;
     }
-    triggerProtectedAction('send-code');
+    void performAction('send-code');
   };
 
   const handleSubmit = async (event: FormEvent) => {
@@ -345,10 +196,6 @@ export default function Auth() {
     setSuccessMsg('');
 
     if (authState === 'register') {
-      if (!captchaConfig.registration_enabled) {
-        setErrorMsg(t('auth.error.registrationClosed'));
-        return;
-      }
       if (!email || !code || !password) {
         setErrorMsg(t('auth.error.registerRequired'));
         return;
@@ -367,9 +214,6 @@ export default function Auth() {
           }),
         });
         setSuccessMsg(t('auth.success.created'));
-        window.setTimeout(() => {
-          setAuthState('login');
-        }, 1200);
       } catch (error) {
         setErrorMsg(resolveErrorMessage(error, t('auth.error.registerFailed')));
       } finally {
@@ -383,21 +227,11 @@ export default function Auth() {
         setErrorMsg(t('auth.error.loginRequired'));
         return;
       }
-      triggerProtectedAction('login');
+      void performAction('login');
       return;
     }
 
     setErrorMsg(t('auth.error.recoveryUnavailable'));
-  };
-
-  const handleCaptchaVerified = (token: string) => {
-    const action = pendingAction;
-    setCaptchaModalOpen(false);
-    setPendingAction(null);
-    if (!action) {
-      return;
-    }
-    void performProtectedAction(action, token);
   };
 
   return (
@@ -525,6 +359,7 @@ export default function Auth() {
                   className="form-animator"
                 >
                   <form className="auth-form" onSubmit={handleSubmit}>
+                    <fieldset disabled={submitting} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'grid', gap: 13 }}>
                     {authState === 'register' ? (
                       <>
                         <div className="input-group">
@@ -545,7 +380,7 @@ export default function Auth() {
                             className="send-code-btn"
                             onClick={handleSendCode}
                             disabled={
-                              countdown > 0 || submitting || autoCaptchaRunning
+                              countdown > 0 || submitting
                             }
                           >
                             {countdown > 0
@@ -656,25 +491,17 @@ export default function Auth() {
                           : undefined
                       }
                       className="btn-primary w-full mt-4"
-                      disabled={
-                        submitting ||
-                        autoCaptchaRunning ||
-                        (authState === 'login' && captchaConfigLoading)
-                      }
+                      disabled={submitting}
                     >
                       <span>
-                        {authState === 'login' &&
-                          (captchaConfigLoading
-                            ? t('auth.button.preparing')
-                            : autoCaptchaRunning
-                              ? t('auth.button.checking')
-                              : t('auth.button.signIn'))}
+                        {authState === 'login' && t('auth.button.signIn')}
                         {authState === 'register' && t('auth.button.create')}
                         {authState === 'forgot' &&
                           t('auth.button.contactAdmin')}
                       </span>
                       <ArrowRight size={18} />
                     </button>
+                    </fieldset>
                   </form>
                 </motion.div>
               </AnimatePresence>
@@ -687,6 +514,7 @@ export default function Auth() {
                   <button
                     type="button"
                     className="text-link font-bold text-cta"
+                    disabled={submitting}
                     onClick={() => setAuthState('register')}
                   >
                     {t('auth.createAccount')}
@@ -698,6 +526,7 @@ export default function Auth() {
                   <button
                     type="button"
                     className="text-link font-bold text-secondary"
+                    disabled={submitting}
                     onClick={() => setAuthState('login')}
                   >
                     {t('auth.backToSignIn')}
@@ -709,61 +538,6 @@ export default function Auth() {
         </div>
       </div>
 
-      {captchaEnabled && captchaConfig.turnstile_site_key && (
-        <div className="turnstile-auto-hidden" aria-hidden="true">
-          <Turnstile
-            ref={loginTurnstileRef}
-            siteKey={captchaConfig.turnstile_site_key}
-            options={{
-              theme: 'dark',
-              execution: 'execute',
-              appearance: 'execute',
-              refreshExpired: 'auto',
-              refreshTimeout: 'auto',
-            }}
-            onSuccess={(token) => {
-              const pending = loginCaptchaPromiseRef.current;
-              if (!pending) {
-                return;
-              }
-              clearLoginCaptchaPromise();
-              pending.resolve(token);
-            }}
-            onExpire={() => {
-              const pending = loginCaptchaPromiseRef.current;
-              if (!pending) {
-                return;
-              }
-              clearLoginCaptchaPromise();
-              pending.reject(new Error(t('auth.error.securityExpired')));
-            }}
-            onError={() => {
-              const pending = loginCaptchaPromiseRef.current;
-              if (!pending) {
-                return;
-              }
-              clearLoginCaptchaPromise();
-              pending.reject(new Error(t('auth.error.securityFailed')));
-            }}
-          />
-        </div>
-      )}
-
-      {captchaEnabled &&
-        captchaConfig.turnstile_site_key &&
-        captchaModalOpen && (
-          <CaptchaModal
-            siteKey={captchaConfig.turnstile_site_key}
-            title={t('auth.captchaTitle')}
-            actionLabel={t('auth.captchaAction')}
-            disabled={submitting}
-            onClose={() => {
-              setCaptchaModalOpen(false);
-              setPendingAction(null);
-            }}
-            onVerified={handleCaptchaVerified}
-          />
-        )}
     </motion.div>
   );
 }

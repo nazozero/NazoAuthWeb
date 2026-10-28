@@ -82,6 +82,7 @@ export default function UsersPanel() {
     patch: UserPatch,
     text: string
   ) => {
+    if (busyId) return;
     setBusyId(item.id);
     setFeedback(null);
     try {
@@ -116,6 +117,7 @@ export default function UsersPanel() {
         <div className="admin-query-row">
           <input
             ref={queryInput}
+            disabled={Boolean(busyId)}
             onKeyDown={(event) => {
               if (event.key === 'Enter') setQuery(event.currentTarget.value.trim());
             }}
@@ -124,6 +126,7 @@ export default function UsersPanel() {
           />
           <select
             value={role}
+            disabled={Boolean(busyId)}
             onChange={(event) => setRole(event.target.value)}
           >
             <option value="">{t('admin.ui.allRoles')}</option>
@@ -132,6 +135,7 @@ export default function UsersPanel() {
           </select>
           <select
             value={active}
+            disabled={Boolean(busyId)}
             onChange={(event) => setActive(event.target.value)}
           >
             <option value="">{t('admin.ui.allStates')}</option>
@@ -141,7 +145,7 @@ export default function UsersPanel() {
           <button
             type="button"
             className="btn-secondary"
-            disabled={loading}
+            disabled={loading || Boolean(busyId)}
             onClick={() => setQuery(queryInput.current?.value.trim() ?? '')}
           >
             <Search size={14} />
@@ -184,7 +188,7 @@ export default function UsersPanel() {
                 <button
                   type="button"
                   className="btn-secondary"
-                  disabled={busyId === item.id}
+                  disabled={Boolean(busyId)}
                   onClick={() =>
                     void update(
                       item,
@@ -200,7 +204,7 @@ export default function UsersPanel() {
                 <button
                   type="button"
                   className="btn-secondary"
-                  disabled={busyId === item.id}
+                  disabled={Boolean(busyId)}
                   onClick={() =>
                     void update(
                       item,
@@ -221,7 +225,7 @@ export default function UsersPanel() {
                 <button
                   type="button"
                   className="btn-secondary"
-                  disabled={busyId === item.id || item.role !== 'admin'}
+                  disabled={Boolean(busyId) || item.role !== 'admin'}
                   onClick={() =>
                     void update(
                       item,
@@ -246,7 +250,7 @@ export default function UsersPanel() {
           <button
             type="button"
             className="btn-secondary"
-            disabled={page <= 1 || loading}
+            disabled={page <= 1 || loading || Boolean(busyId)}
             onClick={() => void load(page - 1)}
           >
             {t('admin.ui.previous')}
@@ -254,7 +258,7 @@ export default function UsersPanel() {
           <button
             type="button"
             className="btn-secondary"
-            disabled={page >= pages || loading}
+            disabled={page >= pages || loading || Boolean(busyId)}
             onClick={() => void load(page + 1)}
           >
             {t('admin.ui.next')}

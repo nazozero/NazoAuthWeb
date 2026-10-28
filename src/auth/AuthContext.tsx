@@ -14,7 +14,8 @@ import { clearSessionHint, hasSessionHint, markSessionHint } from './sessionHint
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUserState] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(false);
-  const [sessionChecked, setSessionChecked] = useState(() => !hasSessionHint());
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const [sessionError, setSessionError] = useState(false);
   const refreshInFlightRef = useRef<{
     controller: AbortController;
     promise: Promise<AuthUser | null>;
@@ -30,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserState(nextUser);
     setLoading(false);
     setSessionChecked(true);
+    setSessionError(false);
     if (nextUser) markSessionHint();
     else clearSessionHint();
   }, [cancelRefresh]);
@@ -42,23 +44,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const controller = new AbortController();
     const pending = (async (): Promise<AuthUser | null> => {
       setLoading(true);
+      setSessionError(false);
       try {
         const me = await apiFetch<AuthUser>('/auth/me', { signal: controller.signal });
         if (controller.signal.aborted) return null;
         setUserState(me);
+        setSessionChecked(true);
         markSessionHint();
         return me;
       } catch (error) {
         if (!controller.signal.aborted && error instanceof ApiError && error.status === 401) {
           setUserState(null);
           clearSessionHint();
+          setSessionChecked(true);
+        } else if (!controller.signal.aborted) {
+          setSessionError(true);
         }
         return null;
       } finally {
         if (!controller.signal.aborted) {
           refreshInFlightRef.current = null;
           setLoading(false);
-          setSessionChecked(true);
         }
       }
     })();
@@ -88,11 +94,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       loading,
       sessionChecked,
+      sessionError,
       refreshSession,
       setUser,
       logout,
     }),
-    [loading, logout, refreshSession, sessionChecked, setUser, user]
+    [loading, logout, refreshSession, sessionChecked, sessionError, setUser, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

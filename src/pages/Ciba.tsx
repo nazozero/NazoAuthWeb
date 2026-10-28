@@ -59,6 +59,7 @@ export default function Ciba() {
   const [submitting, setSubmitting] = useState<'approve' | 'deny' | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [resultMsg, setResultMsg] = useState('');
+  const [statusUnknown, setStatusUnknown] = useState(false);
   const requestOwner = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -68,6 +69,7 @@ export default function Ciba() {
     setSubmitting(null);
     setErrorMsg('');
     setResultMsg('');
+    setStatusUnknown(false);
 
     const loadCibaView = async () => {
       try {
@@ -114,6 +116,27 @@ export default function Ciba() {
   const scopes = request?.scopes ?? [];
   const audiences = request?.audiences ?? [];
 
+  const reloadDecisionStatus = async (owner: AbortController, id: string) => {
+    try {
+      const latest = await apiFetch<CibaVerificationView>(
+        `/auth/ciba/${encodeURIComponent(id)}`, { signal: owner.signal }
+      );
+      if (owner.signal.aborted) return;
+      setView(latest);
+      setStatusUnknown(false);
+      setErrorMsg(latest.request ? t('ciba.warning.statusReloaded') : t('ciba.warning.mayBeProcessed'));
+    } catch (error) {
+      if (owner.signal.aborted) return;
+      if (error instanceof ApiError && error.status === 401) {
+        setUser(null);
+        navigate(buildAuthRedirectWithNext(buildCurrentPath(window.location)), { replace: true });
+        return;
+      }
+      setStatusUnknown(true);
+      setErrorMsg(t('ciba.warning.statusUnknown'));
+    }
+  };
+
   const submitDecision = async (decision: 'approve' | 'deny') => {
     const owner = requestOwner.current;
     if (!view?.auth_req_id || !owner || owner.signal.aborted) {
@@ -147,7 +170,7 @@ export default function Ciba() {
       setView((current) => (current ? { ...current, request: null } : current));
     } catch (error) {
       if (owner.signal.aborted) return;
-      if (error instanceof ApiError) {
+      if (error instanceof ApiError && error.status < 500) {
         if (error.status === 401) {
           setUser(null);
           navigate(
@@ -162,31 +185,7 @@ export default function Ciba() {
         return;
       }
 
-      try {
-        const latest = await apiFetch<CibaVerificationView>(
-          `/auth/ciba/${encodeURIComponent(view.auth_req_id)}`, { signal: owner.signal }
-        );
-        if (owner.signal.aborted) return;
-        setView(latest);
-        setErrorMsg(
-          latest.request
-            ? t('ciba.warning.statusReloaded')
-            : t('ciba.warning.mayBeProcessed')
-        );
-      } catch (reloadError) {
-        if (owner.signal.aborted) return;
-        if (reloadError instanceof ApiError && reloadError.status === 401) {
-          setUser(null);
-          navigate(
-            buildAuthRedirectWithNext(buildCurrentPath(window.location)),
-            {
-              replace: true,
-            }
-          );
-          return;
-        }
-        setErrorMsg(t('ciba.warning.statusUnknown'));
-      }
+      await reloadDecisionStatus(owner, view.auth_req_id);
     } finally {
       if (!owner.signal.aborted) setSubmitting(null);
     }
@@ -240,6 +239,14 @@ export default function Ciba() {
               >
                 <AlertTriangle size={18} />
                 <span>{errorMsg}</span>
+                {statusUnknown && <button type="button" disabled={submitting !== null} onClick={() => {
+                  const owner = requestOwner.current;
+                  if (!owner || !view?.auth_req_id) return;
+                  setSubmitting('approve');
+                  void reloadDecisionStatus(owner, view.auth_req_id).finally(() => {
+                    if (!owner.signal.aborted) setSubmitting(null);
+                  });
+                }}>{t('ciba.retryStatus')}</button>}
               </motion.div>
             )}
 
@@ -364,7 +371,7 @@ export default function Ciba() {
                     id="nazo-ciba-deny"
                     type="button"
                     className="ciba-btn deny"
-                    disabled={submitting !== null}
+                    disabled={submitting !== null || statusUnknown}
                     onClick={() => void submitDecision('deny')}
                   >
                     <CircleSlash size={16} />
@@ -378,7 +385,7 @@ export default function Ciba() {
                     id="nazo-ciba-approve"
                     type="button"
                     className="ciba-btn approve"
-                    disabled={submitting !== null}
+                    disabled={submitting !== null || statusUnknown}
                     onClick={() => void submitDecision('approve')}
                   >
                     <ShieldCheck size={16} />

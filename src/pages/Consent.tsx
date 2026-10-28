@@ -1,4 +1,5 @@
 import BrandLogo from '../components/BrandLogo';
+import RequireAuth from '../components/RequireAuth';
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -10,7 +11,6 @@ import {
   Link2,
   LockKeyhole,
   ShieldCheck,
-  UserRound,
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { buildAuthRedirectWithNext, buildCurrentPath } from '../auth/next';
@@ -191,8 +191,7 @@ export default function Consent() {
   const userName =
     user?.display_name || user?.email?.split('@')[0] || 'current account';
   const userAvatar = resolveAvatarUrl(user?.avatar_url);
-
-  return (
+  const content = (
     <motion.div
       className="page-transition-wrap consent-page"
       variants={pageVariants}
@@ -206,17 +205,13 @@ export default function Consent() {
         <div className="authorization-brand">
           <BrandLogo />
         </div>
-        <motion.section className="consent-user-strip glass" layout>
+        {user && <motion.section className="consent-user-strip glass" layout>
           <div className="consent-user-avatar-wrap">
-            {user ? (
-              <img
-                src={userAvatar}
-                alt="Current user avatar"
-                className="consent-user-avatar"
-              />
-            ) : (
-              <UserRound size={18} />
-            )}
+            <img
+              src={userAvatar}
+              alt="Current user avatar"
+              className="consent-user-avatar"
+            />
           </div>
           <div className="consent-user-main">
             <strong>{userName}</strong>
@@ -227,7 +222,7 @@ export default function Consent() {
               </span>
             </p>
           </div>
-        </motion.section>
+        </motion.section>}
 
         <motion.section className="consent-card glass" layout>
           <header className="consent-head">
@@ -268,7 +263,7 @@ export default function Consent() {
               </motion.div>
             )}
 
-            {!loading && consentView && (
+            {!loading && !errorMsg && user && consentView && (
               <motion.div
                 key="consent-ready"
                 variants={contentSwitchVariants}
@@ -396,4 +391,5 @@ export default function Consent() {
       </div>
     </motion.div>
   );
+  return requestId ? <RequireAuth>{content}</RequireAuth> : content;
 }

@@ -28,9 +28,7 @@ type ModuleDraft = {
   baseRevision: number;
 };
 
-type PendingChange = AcceptedRuntimeModuleChange;
-
-const DESIRED_MODES: RuntimeDesiredMode[] = ['inherit', 'enabled', 'disabled'];
+const DESIRED_MODES: RuntimeDesiredMode[] = ['enabled', 'disabled'];
 const POLL_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 10_000] as const;
 
 function initialDraft(module: RuntimeModuleStatus): ModuleDraft {
@@ -50,11 +48,7 @@ function isDirty(draft: ModuleDraft): boolean {
 }
 
 function actionForMode(mode: RuntimeDesiredMode): RuntimeModuleAction {
-  return mode === 'enabled'
-    ? 'enable'
-    : mode === 'disabled'
-      ? 'disable'
-      : 'inherit';
+  return mode === 'enabled' ? 'enable' : 'disable';
 }
 
 function formatTimestamp(value: string | null): string {
@@ -81,6 +75,11 @@ function isStable(
   );
 }
 
+function isPending(module: RuntimeModuleStatus, accepted?: AcceptedRuntimeModuleChange): boolean {
+  return Boolean(accepted && module.revision <= accepted.revision &&
+    (module.revision < accepted.revision || !isStable(module, accepted.revision)));
+}
+
 function requiresMfaStepUp(error: unknown): error is ApiError {
   if (!(error instanceof ApiError)) {
     return false;
@@ -105,11 +104,12 @@ export default function RuntimeModulesPanel() {
   const [events, setEvents] = useState<RuntimeModuleEvent[]>([]);
   const [drafts, setDrafts] = useState<Record<string, ModuleDraft>>({});
   const [reviewing, setReviewing] = useState<RuntimeModuleStatus | null>(null);
-  const [pending, setPending] = useState<Record<string, PendingChange>>({});
+  const [acceptedChanges, setAcceptedChanges] = useState<Record<string, AcceptedRuntimeModuleChange>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [savingModule, setSavingModule] = useState('');
-  const [error, setError] = useState('');
+  const [error, setErrorState] = useState<{ source: 'read' | 'action'; message: string } | null>(null);
+  const setError = (message: string) => setErrorState(message ? { source: 'action', message } : null);
   const [notice, setNotice] = useState('');
   const [mfaModuleId, setMfaModuleId] = useState<string | null>(null);
   const [mfaCode, setMfaCode] = useState('');
@@ -118,14 +118,12 @@ export default function RuntimeModulesPanel() {
   const pollAttemptRef = useRef(0);
   const moduleRequestRef = useRef(0);
   const appliedModuleRequestRef = useRef(0);
+  const eventRequestRef = useRef(0);
+  const appliedEventRequestRef = useRef(0);
 
-  const loadModules = useCallback(async () => {
-    const requestId = ++moduleRequestRef.current;
-    const response = await apiFetch<RuntimeModuleListResponse>(
-      '/admin/runtime-modules'
-    );
-    if (requestId < appliedModuleRequestRef.current) {
-      return response.items;
+  const applyModules = useCallback((response: RuntimeModuleListResponse, requestId: number, signal?: AbortSignal) => {
+    if (signal?.aborted || requestId < appliedModuleRequestRef.current) {
+      return;
     }
     appliedModuleRequestRef.current = requestId;
     setModules((current) =>
@@ -137,32 +135,60 @@ export default function RuntimeModulesPanel() {
         const draft = next[module.module_id];
         if (
           !draft ||
-          (draft.baseRevision !== module.revision && !isDirty(draft))
+          (draft.baseRevision < module.revision && !isDirty(draft))
         ) {
           next[module.module_id] = initialDraft(module);
         }
       }
       return next;
     });
-    setPending((current) => {
-      const next = { ...current };
-      for (const module of response.items) {
-        const accepted = next[module.module_id];
-        if (accepted && isStable(module, accepted.revision)) {
-          delete next[module.module_id];
-        }
-      }
-      return next;
-    });
-    return response.items;
+
   }, []);
 
-  const loadEvents = useCallback(async () => {
-    const response = await apiFetch<RuntimeModuleEventListResponse>(
-      '/admin/runtime-modules/events?page=1&page_size=20'
-    );
-    setEvents(response.items);
+  const fetchModules = useCallback((signal?: AbortSignal) => {
+    const requestId = ++moduleRequestRef.current;
+    const promise = apiFetch<RuntimeModuleListResponse>('/admin/runtime-modules', { signal });
+    return { requestId, promise };
   }, []);
+
+  const loadModules = useCallback(async (signal?: AbortSignal) => {
+    const { requestId, promise } = fetchModules(signal);
+    const response = await promise;
+    applyModules(response, requestId, signal);
+  }, [applyModules, fetchModules]);
+
+  const loadEvents = useCallback(async (signal?: AbortSignal) => {
+    const requestId = ++eventRequestRef.current;
+    const response = await apiFetch<RuntimeModuleEventListResponse>(
+      '/admin/runtime-modules/events?page=1&page_size=20',
+      { signal }
+    );
+    if (!signal?.aborted && requestId >= appliedEventRequestRef.current) {
+      appliedEventRequestRef.current = requestId;
+      setEvents(response.items);
+    }
+  }, []);
+
+  const loadAll = useCallback(async (signal?: AbortSignal) => {
+    const { requestId, promise } = fetchModules(signal);
+    const results = await Promise.allSettled([promise, loadEvents(signal)]);
+    if (signal?.aborted) return;
+    if (requestId === moduleRequestRef.current) {
+      const failure = results.find((result) => result.status === 'rejected');
+      if (failure?.status === 'rejected') {
+        const message = failure.reason instanceof Error
+          ? failure.reason.message
+          : 'Could not refresh runtime modules.';
+        setErrorState((current) => current?.source === 'action' ? current : { source: 'read', message });
+      } else {
+        setErrorState((current) => current?.source === 'read' ? null : current);
+      }
+    }
+    const modulesResult = results[0];
+    if (modulesResult.status === 'fulfilled') {
+      applyModules(modulesResult.value, requestId, signal);
+    }
+  }, [applyModules, fetchModules, loadEvents]);
 
   useEffect(() => {
     const onVisibilityChange = () => setPageVisible(!document.hidden);
@@ -172,33 +198,18 @@ export default function RuntimeModulesPanel() {
   }, []);
 
   useEffect(() => {
-    let active = true;
-    void Promise.all([loadModules(), loadEvents()])
-      .catch((caught: unknown) => {
-        if (active) {
-          setError(
-            caught instanceof Error
-              ? caught.message
-              : 'Could not load runtime modules.'
-          );
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setLoading(false);
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [loadEvents, loadModules]);
+    const controller = new AbortController();
+    void loadAll(controller.signal).finally(() => {
+      if (!controller.signal.aborted) setLoading(false);
+    });
+    return () => controller.abort();
+  }, [loadAll]);
 
   const shouldPoll = modules.some(
     (module) =>
       module.actual_state === 'starting' ||
       module.actual_state === 'draining' ||
-      (pending[module.module_id] &&
-        !isStable(module, pending[module.module_id].revision))
+      isPending(module, acceptedChanges[module.module_id])
   );
 
   useEffect(() => {
@@ -206,24 +217,27 @@ export default function RuntimeModulesPanel() {
       pollAttemptRef.current = 0;
       return;
     }
-    const delay =
-      POLL_DELAYS_MS[
+    const controller = new AbortController();
+    let timer: number;
+    const schedule = () => {
+      const delay = POLL_DELAYS_MS[
         Math.min(pollAttemptRef.current, POLL_DELAYS_MS.length - 1)
       ];
-    const timer = window.setTimeout(() => {
-      pollAttemptRef.current += 1;
-      void Promise.all([loadModules(), loadEvents()]).catch(
-        (caught: unknown) => {
-          setError(
-            caught instanceof Error
-              ? caught.message
-              : 'Could not refresh runtime modules.'
-          );
+      timer = window.setTimeout(async () => {
+        pollAttemptRef.current += 1;
+        try {
+          await loadAll(controller.signal);
+        } finally {
+          if (!controller.signal.aborted) schedule();
         }
-      );
-    }, delay);
-    return () => window.clearTimeout(timer);
-  }, [loadEvents, loadModules, pageVisible, pending, shouldPoll]);
+      }, delay);
+    };
+    schedule();
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [loadAll, pageVisible, shouldPoll]);
 
   const updateDraft = (
     module: RuntimeModuleStatus,
@@ -240,21 +254,15 @@ export default function RuntimeModulesPanel() {
 
   const refreshAll = async () => {
     setRefreshing(true);
-    setError('');
     try {
-      await Promise.all([loadModules(), loadEvents()]);
-    } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : 'Could not refresh runtime modules.'
-      );
+      await loadAll();
     } finally {
       setRefreshing(false);
     }
   };
 
   const submitChange = async (module: RuntimeModuleStatus) => {
+    if (savingModule) return;
     const draft = drafts[module.module_id] ?? initialDraft(module);
     setSavingModule(module.module_id);
     setError('');
@@ -273,34 +281,31 @@ export default function RuntimeModulesPanel() {
           expectedStatus: 202,
         }
       );
-      setPending((current) => ({ ...current, [module.module_id]: accepted }));
+      setAcceptedChanges((current) =>
+        (current[module.module_id]?.revision ?? -1) > accepted.revision
+          ? current
+          : { ...current, [module.module_id]: accepted }
+      );
       setDrafts((current) => ({
         ...current,
-        [module.module_id]: {
-          desiredState: accepted.desired_state,
-          reason: '',
-          baseDesiredState: accepted.desired_state,
-          baseRevision: accepted.revision,
-        },
+        [module.module_id]: (current[module.module_id]?.baseRevision ?? -1) > accepted.revision
+          ? current[module.module_id]
+          : {
+              desiredState: accepted.desired_state,
+              reason: '',
+              baseDesiredState: accepted.desired_state,
+              baseRevision: accepted.revision,
+            },
       }));
       setReviewing(null);
       pollAttemptRef.current = 0;
     } catch (caught) {
       if (isRevisionConflict(caught)) {
-        setError(
-          `${module.module_id} changed on the server. Authoritative state was reloaded.`
-        );
         try {
-          const latest = await loadModules();
-          const authoritative = latest.find(
-            (item) => item.module_id === module.module_id
+          await loadModules();
+          setError(
+            `${module.module_id} changed on the server. Review the authoritative state before continuing.`
           );
-          if (authoritative) {
-            setDrafts((current) => ({
-              ...current,
-              [module.module_id]: initialDraft(authoritative),
-            }));
-          }
         } catch (reloadError) {
           const detail =
             reloadError instanceof Error
@@ -382,7 +387,7 @@ export default function RuntimeModulesPanel() {
 
       {error && (
         <p className="admin-feedback error" role="alert">
-          {error}
+          {error.message}
         </p>
       )}
       {notice && (
@@ -394,7 +399,8 @@ export default function RuntimeModulesPanel() {
       <div className="runtime-module-grid">
         {modules.map((module) => {
           const draft = drafts[module.module_id] ?? initialDraft(module);
-          const accepted = pending[module.module_id];
+          const receipt = acceptedChanges[module.module_id];
+          const accepted = isPending(module, receipt) ? receipt : undefined;
           const draftIsStale = draft.baseRevision !== module.revision;
           const selectedActionAllowed =
             draft.desiredState === module.desired_state ||
@@ -481,6 +487,7 @@ export default function RuntimeModulesPanel() {
                   <button
                     type="button"
                     className="btn-secondary"
+                    disabled={savingModule === module.module_id}
                     onClick={() =>
                       setDrafts((current) => ({
                         ...current,
@@ -497,6 +504,7 @@ export default function RuntimeModulesPanel() {
                 <select
                   aria-label={`Desired mode for ${module.module_id}`}
                   value={draft.desiredState}
+                  disabled={savingModule === module.module_id}
                   onChange={(event) =>
                     updateDraft(module, {
                       desiredState: event.target.value as RuntimeDesiredMode,
@@ -522,6 +530,7 @@ export default function RuntimeModulesPanel() {
                 <textarea
                   aria-label={`Reason for ${module.module_id}`}
                   maxLength={500}
+                  disabled={savingModule === module.module_id}
                   value={draft.reason}
                   onChange={(event) =>
                     updateDraft(module, { reason: event.target.value })
@@ -536,7 +545,7 @@ export default function RuntimeModulesPanel() {
                   draft.desiredState === module.desired_state ||
                   !selectedActionAllowed ||
                   !draft.reason.trim() ||
-                  savingModule === module.module_id
+                  Boolean(savingModule)
                 }
                 onClick={() => {
                   setReviewing(module);
@@ -615,7 +624,7 @@ export default function RuntimeModulesPanel() {
           <button
             type="button"
             className="btn-primary"
-            disabled={savingModule === reviewing.module_id}
+            disabled={Boolean(savingModule)}
             onClick={() => void submitChange(reviewing)}
           >
             {t('admin.ui.confirm')} {reviewing.module_id} {t('admin.ui.change')}

@@ -22,7 +22,7 @@ function Session({ children }: { children: ReactNode }) {
     avatar_url: null, role: 'user', admin_level: 0, authorized_app_count: 0,
   });
   return <AuthContext.Provider value={{ user, setUser, loading: false,
-    sessionChecked: true, refreshSession: async () => user, logout: async () => setUser(null) }}>
+    sessionChecked: true, sessionError: false, refreshSession: async () => user, logout: async () => setUser(null) }}>
     {children}
   </AuthContext.Provider>;
 }

@@ -88,12 +88,6 @@ export interface ClientCredentialDeliveryResponse {
   read_once_notice: string;
 }
 
-export interface CaptchaConfig {
-  turnstile_enabled: boolean;
-  turnstile_site_key?: string | null;
-  registration_enabled: boolean;
-}
-
 export interface ConsentView {
   request_id: string;
   client_id: string;
